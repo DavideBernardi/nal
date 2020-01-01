@@ -18,6 +18,7 @@
 Note: This is only used when initially reading in each space-separated string,
       actual words are then stored in properly allocated memory.*/
 #define MAXWORDSIZE 1000
+#define WORDSINTEST1 4
 #define strsame(A,B) (strcmp(A, B)==0)
 #define ERROR(PHRASE) {fprintf(stderr, "Fatal Error %s occurred in %s, line %d\n", PHRASE, __FILE__, __LINE__); exit(EXIT_SUCCESS); }
 
@@ -99,7 +100,8 @@ int main(int argc, char const *argv[])
 }
 
 
-void test(void) {
+void test(void)
+{
 /* initNatFile
    terminateNalFile */
 
@@ -112,30 +114,90 @@ void test(void) {
    assert(p->totWords == 0);
 
    terminateNalFile(&p);
-   printf("%d\n", (int)p);
    assert(p==NULL);
 
    testTokenization();
 }
 
-void testTokenization(void) {
+void testTokenization(void)
+{
    /* getWordSizes
-      wordLength
       tokenizeFile
       getWord
       strAppend
-      multiWordString
       freeList
-      allocateNode
       */
 
-      assert(multiWordString("Hello")==FALSE);
-      assert(multiWordString("\"Nope\"")==FALSE);
-      assert(multiWordString("\"Yep")==TRUE);
-      assert(multiWordString("#Nope#")==FALSE);
-      assert(multiWordString("#Yep")==TRUE);
-      assert(multiWordString("{")==FALSE);
+   node *n, *curr, *oldNode;
+   FILE *testFile;
+   list *wordLengths;
+   char testWord[MAXWORDSIZE];
+   nalFile *testNal;
+   int i;
+   char wordsInTest1[WORDSINTEST1][MAXWORDSIZE] = {"{", "PRINT", "\"Hello World! From test1\"", "}"};
 
+
+   /*Testing multiWordString*/
+   assert(multiWordString("Hello")==FALSE);
+   assert(multiWordString("\"Nope\"")==FALSE);
+   assert(multiWordString("\"Yep")==TRUE);
+   assert(multiWordString("#Nope#")==FALSE);
+   assert(multiWordString("#Yep")==TRUE);
+   assert(multiWordString("{")==FALSE);
+
+   /*Testing allocateNode*/
+   n = allocateNode(5);
+   assert(n->data==5);
+   assert(n->next==NULL);
+   free(n);
+
+   /*Testing wordLength*/
+   testFile = getFile("test1.nal");
+   wordLengths = NULL;
+   for (i = 0; i < WORDSINTEST1; i++) {
+      assert(fscanf(testFile, "%s", testWord)==1);
+      printf("%s\n", testWord);
+      assert(wordLength(testWord, testFile, wordLengths)==(int)strlen(wordsInTest1[i]));
+   }
+   fclose(testFile);
+
+   /*Testing getWordSizes*/
+   testFile = getFile("test1.nal");
+   wordLengths = getWordSizes(testFile);
+   assert(wordLengths->size==WORDSINTEST1);
+   i = 0;
+   curr = wordLengths->head;
+   while (curr!=NULL) {
+      assert(curr->data==(int)strlen(wordsInTest1[i]));
+         i++;
+      oldNode = curr;
+      curr = curr->next;
+      free(oldNode);
+   }
+   free(wordLengths);
+   assert(i==WORDSINTEST1);
+   fclose(testFile);
+
+   /*Testing getWord*/
+   testFile = getFile("test1.nal");
+   /*IMPORTANT IF A TOKENIZED WORD IS LONGER THAN 1000 CHARS, THIS CODE WILL BREAK*/
+   for (i = 0; i < WORDSINTEST1; i++) {
+      getWord(testWord, testFile);
+      assert(strsame(testWord,wordsInTest1[i]));
+   }
+   fclose(testFile);
+
+   /*Testing tokenizeFile*/
+   testFile = getFile("test1.nal");
+   testNal = initNalFile();
+   wordLengths = getWordSizes(testFile);
+   tokenizeFile(testNal, testFile, wordLengths);
+   fclose(testFile);
+   assert(testNal->totWords == WORDSINTEST1);
+   for (i = 0; i < WORDSINTEST1; i++) {
+      assert(strsame(testNal->words[i],wordsInTest1[i]));
+   }
+   terminateNalFile(&testNal);
 }
 
 void checkInput(int argc, char const *argv[])
@@ -336,7 +398,7 @@ void freeList(list **p)
       free(oldNode);
    }
    free(l);
-   p = NULL;
+   *p = NULL;
 }
 
 node *allocateNode(int i)
