@@ -1,0 +1,9 @@
+I started by writing the 1s and 0s parser as instructed, but after doing that I
+decided I wanted my program to be able to reliably tokenize a given file before
+doing any of the actual syntax.
+
+The reason I chose to do it this way is that I knew my testing strategy for the
+Syntax was most likely going to involve writing some .nal files and running them.
+
+Which wouldn't have been possible without sorting out all of the file reading
+infrastructure.

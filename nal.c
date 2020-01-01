@@ -1,9 +1,22 @@
+/*To do:
+   - Change ERROR macro (make into a function?)
+      1. Have it output some more useful information
+      2. Maybe have it handle all the free() in case of unexpected abort
+      3. Maybe change exit() to something else which makes it possible to
+         quit one file without stopping the whole execution
+
+   - Add Testing for listed functions*/
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
 #include <time.h>
 
+
+/*Maximum size of a single %s pulled from the file,
+Note: This is only used when initially reading in each space-separated string,
+      actual words are then stored in properly allocated memory.*/
 #define MAXWORDSIZE 1000
 #define strsame(A,B) (strcmp(A, B)==0)
 #define ERROR(PHRASE) {fprintf(stderr, "Fatal Error %s occurred in %s, line %d\n", PHRASE, __FILE__, __LINE__); exit(EXIT_SUCCESS); }
@@ -26,19 +39,29 @@ typedef struct list{
    int size;
 }list;
 
-/*These are used to play with the file*/
+/*Testing*/
+void test(void);
+void testTokenization(void);
+
+/*General*/
 void checkInput(int argc, char const *argv[]);
 FILE *getFile(char const file[]);
+nalFile *initNalFile(void);
+void terminateNalFile(nalFile **p);
+
+/*Syntax*/
+void prog(nalFile *p);
+void code(nalFile *p);
+void statement(nalFile *p);
+
+/*These are used to read in and tokenize the file*/
 list *getWordSizes(FILE *fp);
 int wordLength(char const *currWord, FILE *fp, list *wordLens);
 void tokenizeFile(nalFile *p, FILE *fp, list *wordLengths);
 void getWord(char *word, FILE* fp);
 void strAppend(char *word, char c);
-nalFile *initNalFile(void);
-void terminateNalFile(nalFile **p);
 bool multiWordString(char const *word);
-
-/*These are used for the int linked list*/
+/*These are for an int linked list used within getWordSizes*/
 node *allocateNode(int i);
 void freeList(list **p);
 
@@ -46,10 +69,6 @@ void freeList(list **p);
 void *allocate(int size, char* const msg);
 void *callocate(int size1, int size2, char* const msg);
 
-/*Syntax*/
-void prog(nalFile *p);
-void code(nalFile *p);
-void statement(nalFile *p);
 
 int main(int argc, char const *argv[])
 {
@@ -75,6 +94,37 @@ int main(int argc, char const *argv[])
 
    terminateNalFile(&p);
    return 0;
+}
+
+
+void test(void) {
+/* initNatFile
+   terminateNalFile */
+
+   nalFile *p;
+
+   p = initNalFile();
+   assert(p!=NULL);
+   assert(p->words == NULL);
+   assert(p->currWord == 0);
+   assert(p->totWords == 0);
+
+   terminateNalFile(&p);
+   assert(p==NULL);
+
+   testTokenization();
+}
+
+void testTokenization(void) {
+   /* getWordSizes
+      wordLength
+      tokenizeFile
+      getWord
+      strAppend
+      multiWordString
+      freeList
+      allocateNode
+      */
 }
 
 void checkInput(int argc, char const *argv[])

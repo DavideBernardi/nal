@@ -10,10 +10,12 @@ EXECS = $(BEXECS) $(SEXECS) $(DEXECS)
 
 all : $(BEXECS)
 
-parse : $(BEXECS).c
-	$(CC) $(CFLAGS) $(BEXECS).c  -o $(BEXECS)
-	$(CC) $(SFLAGS) $(BEXECS).c  -o $(SEXECS)
-	$(CC) $(DFLAGS) $(BEXECS).c $(DFLAGS) -o $(DEXECS)
+parse : $(BASE).c
+		$(CC) $(BASE).c $(CFLAGS) -o $@
+parse_s : $(BASE).c
+		$(CC) $(BASE).c $(SFLAGS) -o $@
+parse_d : $(BASE).c
+		$(CC) $(BASE).c $(DFLAGS) -o $@
 
 test : testparse
 
