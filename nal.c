@@ -77,6 +77,8 @@ int main(int argc, char const *argv[])
    list *wordLengths;
    int i;
 
+   test();
+
    checkInput(argc, argv);
    fp = getFile(argv[1]);
 
@@ -110,6 +112,7 @@ void test(void) {
    assert(p->totWords == 0);
 
    terminateNalFile(&p);
+   printf("%d\n", (int)p);
    assert(p==NULL);
 
    testTokenization();
@@ -125,6 +128,14 @@ void testTokenization(void) {
       freeList
       allocateNode
       */
+
+      assert(multiWordString("Hello")==FALSE);
+      assert(multiWordString("\"Nope\"")==FALSE);
+      assert(multiWordString("\"Yep")==TRUE);
+      assert(multiWordString("#Nope#")==FALSE);
+      assert(multiWordString("#Yep")==TRUE);
+      assert(multiWordString("{")==FALSE);
+
 }
 
 void checkInput(int argc, char const *argv[])
@@ -173,7 +184,7 @@ void terminateNalFile(nalFile **p)
    }
    free(q->words);
    free(q);
-   p = NULL;
+   *p = NULL;
 }
 
 /* Return a list containing the exact size of each word in the file,
