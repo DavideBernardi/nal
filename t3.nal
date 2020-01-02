@@ -1,0 +1,4 @@
+{
+   FILE "filename.txt"
+   ABORT
+}

@@ -8,3 +8,6 @@ Syntax was most likely going to involve writing some .nal files and running them
 Which wouldn't have been possible without sorting out all of the file reading
 infrastructure.
 All of that code was easy to test function by function.
+
+Then I started building the syntax one command at a time, for each new command
+I wrote a new .nal file which only tested that particular piece of syntax

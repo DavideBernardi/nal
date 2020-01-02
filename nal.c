@@ -1,11 +1,10 @@
 /*To do:
    - Change ERROR macro (make into a function?)
       1. Have it output some more useful information
-      2. Maybe have it handle all the free() in case of unexpected abort
+      2. Maybe have it handle all the free() in case of unexpected nalAbort
       3. Maybe change exit() to something else which makes it possible to
          quit one file without stopping the whole execution
-
-   - Add Testing for listed functions*/
+*/
 
 #include <stdio.h>
 #include <string.h>
@@ -19,10 +18,11 @@ Note: This is only used when initially reading in each space-separated string,
       actual words are then stored in properly allocated memory.*/
 #define MAXWORDSIZE 1000
 #define WORDSINTEST1 4
+#define ERRORLINELENGTH 1000
 #define strsame(A,B) (strcmp(A, B)==0)
-#define ERROR(PHRASE) {fprintf(stderr, "Fatal Error %s occurred in %s, line %d\n", PHRASE, __FILE__, __LINE__); exit(EXIT_SUCCESS); }
 
 typedef enum {FALSE, TRUE} bool;
+typedef enum {NOTEXECUTED, EXECUTED} instr;
 
 typedef struct nalFile{
    char **words;
@@ -49,11 +49,17 @@ void checkInput(int argc, char const *argv[]);
 FILE *getFile(char const file[]);
 nalFile *initNalFile(void);
 void terminateNalFile(nalFile **p);
+void nalERROR(nalFile *p, char* const msg);
+void ERROR(char* const msg);
 
 /*Syntax*/
-void prog(nalFile *p);
-void code(nalFile *p);
-void statement(nalFile *p);
+void program(nalFile *p);
+void instrs(nalFile *p);
+void instruct(nalFile *p);
+instr file(nalFile *p);
+instr nalAbort(nalFile *p);
+
+bool isstrcon(nalFile *p);
 
 /*These are used to read in and tokenize the file*/
 list *getWordSizes(FILE *fp);
@@ -76,7 +82,7 @@ int main(int argc, char const *argv[])
    FILE *fp;
    nalFile *p;
    list *wordLengths;
-   int i;
+   /*int i;*/
 
    test();
 
@@ -88,12 +94,12 @@ int main(int argc, char const *argv[])
    tokenizeFile(p, fp, wordLengths);
    fclose(fp);
 
-   for (i = 0; i < p->totWords; i++) {
+   /*for (i = 0; i < p->totWords; i++) {
       printf("%s\n", p->words[i]);
-   }
+   }*/
 
-   /*prog(&p);
-   printf("Parsed OK\n");*/
+   program(p);
+   printf("Parsed OK\n");
 
    terminateNalFile(&p);
    return 0;
@@ -121,13 +127,6 @@ void test(void)
 
 void testTokenization(void)
 {
-   /* getWordSizes
-      tokenizeFile
-      getWord
-      strAppend
-      freeList
-      */
-
    node *n, *curr, *oldNode;
    FILE *testFile;
    list *wordLengths;
@@ -135,7 +134,6 @@ void testTokenization(void)
    nalFile *testNal;
    int i;
    char wordsInTest1[WORDSINTEST1][MAXWORDSIZE] = {"{", "PRINT", "\"Hello World! From test1\"", "}"};
-
 
    /*Testing multiWordString*/
    assert(multiWordString("Hello")==FALSE);
@@ -156,7 +154,6 @@ void testTokenization(void)
    wordLengths = NULL;
    for (i = 0; i < WORDSINTEST1; i++) {
       assert(fscanf(testFile, "%s", testWord)==1);
-      printf("%s\n", testWord);
       assert(wordLength(testWord, testFile, wordLengths)==(int)strlen(wordsInTest1[i]));
    }
    fclose(testFile);
@@ -267,7 +264,7 @@ list *getWordSizes(FILE *fp)
    } else {
       fclose(fp);
       free(wordLens);
-      ERROR("Empty file");
+      ERROR("Empty file\n");
    }
 
    while (fscanf(fp, "%s", currWord)==1) {
@@ -295,7 +292,7 @@ int wordLength(char const *currWord, FILE *fp, list *wordLens)
          if (c == EOF) {
             freeList(&wordLens);
             fclose(fp);
-            ERROR("No matching string characters (\" or #)");
+            ERROR("No matching string characters (\" or #)\n");
          }
          wordLen++;
       }
@@ -412,34 +409,84 @@ node *allocateNode(int i)
    return n;
 }
 
-void prog(nalFile *p)
+void program(nalFile *p)
 {
-   if (!strsame(p->words[p->currWord], "BEGIN")) {
-      ERROR("No BEGIN statement ?");
+   if (!strsame(p->words[p->currWord], "{")) {
+      nalERROR(p, "No starting \'{\'\n");
    }
    p->currWord++;
-   code(p);
+   instrs(p);
 }
 
-void code(nalFile *p)
+void instrs(nalFile *p)
 {
-   if (strsame(p->words[p->currWord], "END")) {
+   if (strsame(p->words[p->currWord], "}")) {
       return;
    }
-   statement(p);
-   p->currWord++;
-   code(p);
+   instruct(p);
+   instrs(p);
 }
 
-void statement(nalFile *p)
+void instruct(nalFile *p)
 {
-   if (strsame(p->words[p->currWord], "ONE")) {
+   char errorLine[ERRORLINELENGTH];
+
+   if (nalAbort(p)==EXECUTED) {
       return;
    }
-   if (strsame(p->words[p->currWord], "NOUGHT")) {
+   if (file(p)==EXECUTED) {
       return;
    }
-   ERROR("Expecting a ONE or NOUGHT ?");
+
+   sprintf(errorLine, "Word \"%s\" doesn't match any syntax rule, terminating\n",p->words[p->currWord]);
+   nalERROR(p, errorLine);
+}
+
+instr file(nalFile *p)
+{
+   char errorLine[ERRORLINELENGTH];
+
+   if (strsame(p->words[p->currWord], "FILE")) {
+      p->currWord++;
+      if (!isstrcon(p)) {
+         sprintf(errorLine, "Expected STRCON at index %d\n",p->currWord);
+         nalERROR(p, errorLine);
+      }
+      p->currWord++;
+      return EXECUTED;
+   }
+   return NOTEXECUTED;
+}
+
+instr nalAbort(nalFile *p)
+{
+   if (strsame(p->words[p->currWord], "ABORT")) {
+      p->currWord++;
+      return EXECUTED;
+   }
+   return NOTEXECUTED;
+}
+
+bool isstrcon(nalFile *p)
+{
+   char first, last;
+
+   first = p->words[p->currWord][0];
+   last = p->words[p->currWord][strlen(p->words[p->currWord]-1)];
+
+   if (first == '\"' && last == '\"') {
+      return TRUE;
+   }
+   if (first == '#' && last == '#') {
+      return TRUE;
+   }
+   return FALSE;
+}
+
+void nalERROR(nalFile *p, char* const msg)
+{
+   terminateNalFile(&p);
+   ERROR(msg);
 }
 
 void *allocate(int size, char* const msg)
@@ -466,4 +513,10 @@ void *callocate(int size1, int size2, char* const msg)
    }
 
    return p;
+}
+
+void ERROR(char* const msg)
+{
+   fprintf(stderr, "%s", msg);
+   exit(EXIT_FAILURE);
 }
