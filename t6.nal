@@ -1,0 +1,10 @@
+{
+   FILE "filename.nal"
+   IN2STR ( $C , $ZER )
+   INNUM ( %NV )
+   RND ( %N )
+   PRINT "Hello World! From test1"
+   PRINTN "Hello World! From test1"
+   JUMP 1
+   ABORT
+}

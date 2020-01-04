@@ -29,6 +29,9 @@ Note: This is only used when initially reading in each space-separated string,
 #define ERRORLINELENGTH 1000
 #define IN2STRWORDS 6
 #define INNUMWORDS 4
+#define RANDWORDS 4
+#define INCWORDS 4
+#define SETWORDS 3
 #define strsame(A,B) (strcmp(A, B)==0)
 
 typedef enum {FALSE, TRUE} bool;
@@ -72,11 +75,21 @@ instr input(nalFile *p);
 instr in2str(nalFile *p);
 instr innum(nalFile *p);
 instr jump(nalFile *p);
+instr nalPrint(nalFile *p);
+instr nalRnd(nalFile *p);
+instr nalIfcond(nalFile *p);
+instr nalIfequal(nalFile *p);
+instr nalIfgreater(nalFile *p);
+instr nalInc(nalFile *p);
+instr nalSet(nalFile *p);
 
 bool isstrcon(nalFile *p);
 bool isnumvar(nalFile *p);
 bool isstrvar(nalFile *p);
 bool isnumcon(nalFile *p);
+bool isvar(nalFile *p);
+bool iscon(nalFile *p);
+bool isvarcon(nalFile *p);
 
 bool validVar(nalFile *p, char c);
 
@@ -112,10 +125,6 @@ int main(int argc, char const *argv[])
    p = initNalFile();
    tokenizeFile(p, fp, wordLengths);
    fclose(fp);
-
-   /*for (i = 0; i < p->totWords; i++) {
-      printf("%s\n", p->words[i]);
-   }*/
 
    program(p);
    printf("Parsed OK\n");
@@ -462,6 +471,21 @@ void instruct(nalFile *p)
    if (jump(p)==EXECUTED) {
       return;
    }
+   if (nalPrint(p)==EXECUTED) {
+      return;
+   }
+   if (nalRnd(p)==EXECUTED) {
+      return;
+   }
+   if (nalIfcond(p)==EXECUTED) {
+      return;
+   }
+   if (nalInc(p)==EXECUTED) {
+      return;
+   }
+   if (nalSet(p)==EXECUTED) {
+      return;
+   }
 
    sprintf(errorLine, "Word \"%s\" doesn't match any syntax rule, terminating\n",p->words[p->currWord]);
    nalERROR(p, errorLine);
@@ -585,6 +609,202 @@ instr jump(nalFile *p)
    return NOTEXECUTED;
 }
 
+instr nalPrint(nalFile *p)
+{
+   char errorLine[ERRORLINELENGTH];
+   bool newLine;
+
+   newLine = FALSE;
+
+   if (strsame(p->words[p->currWord], "PRINT") || strsame(p->words[p->currWord], "PRINTN")) {
+      p->currWord++;
+      if (!isvarcon(p)) {
+         sprintf(errorLine, "Expected VARCON at index %d\n",p->currWord);
+         nalERROR(p, errorLine);
+      }
+      /*if currWord-1 is PRINTN, printf("\n")*/
+      p->currWord++;
+      return EXECUTED;
+   }
+   return NOTEXECUTED;
+}
+
+instr nalPrintn(nalFile *p)
+{
+   char errorLine[ERRORLINELENGTH];
+
+   if (strsame(p->words[p->currWord], "PRINT")) {
+      p->currWord++;
+      if (!isvarcon(p)) {
+         sprintf(errorLine, "Expected VARCON at index %d\n",p->currWord);
+         nalERROR(p, errorLine);
+      }
+      p->currWord++;
+      return EXECUTED;
+   }
+   return NOTEXECUTED;
+}
+
+instr nalRnd(nalFile *p)
+{
+   int i;
+   char errorLine[ERRORLINELENGTH];
+   bool correct;
+   char syntax[RANDWORDS][MAXWORDSIZE] = {"RND", "(", "NUMVAR", ")"};
+
+   correct = TRUE;
+
+   if (strsame(p->words[p->currWord], syntax[0])) {
+      p->currWord++;
+      for (i = 1; i < RANDWORDS; i++) {
+         if (strsame(syntax[i], "NUMVAR")) {
+            if (!isnumvar(p)) {
+               correct = FALSE;
+            }
+         } else {
+            if (!strsame(p->words[p->currWord], syntax[i])) {
+            correct = FALSE;
+            }
+         }
+         if (!correct) {
+            sprintf(errorLine, "Expected %s after %s at index %d\n", syntax[i], syntax[i-1], p->currWord);
+            nalERROR(p, errorLine);
+         }
+         p->currWord++;
+      }
+      return EXECUTED;
+   }
+   return NOTEXECUTED;
+}
+
+instr nalIfcond(nalFile *p)
+{
+   char errorLine[ERRORLINELENGTH];
+
+   if (nalIfequal(p) == EXECUTED || nalIfgreater(p) == EXECUTED) {
+      if (!strsame(p->words[p->currWord], "{")) {
+         sprintf(errorLine, "Expected { after CONDITION at index %d\n", p->currWord);
+         nalERROR(p, errorLine);
+      }
+      p->currWord++;
+      instrs(p);
+      return EXECUTED;
+   }
+   return NOTEXECUTED;
+}
+
+instr nalIfequal(nalFile *p)
+{
+   int i;
+   char errorLine[ERRORLINELENGTH];
+   bool correct;
+   char syntax[IN2STRWORDS][MAXWORDSIZE] = {"IFEQUAL", "(", "VARCON", ",", "VARCON", ")"};
+
+   correct = TRUE;
+
+   if (strsame(p->words[p->currWord], syntax[0])) {
+      p->currWord++;
+      for (i = 1; i < IN2STRWORDS; i++) {
+         if (strsame(syntax[i], "VARCON")) {
+            if (!isvarcon(p)) {
+               correct = FALSE;
+            }
+         } else {
+               if (!strsame(p->words[p->currWord], syntax[i])) {
+               correct = FALSE;
+            }
+         }
+         if (!correct) {
+            sprintf(errorLine, "Expected %s after %s at index %d\n", syntax[i], syntax[i-1], p->currWord);
+            nalERROR(p, errorLine);
+         }
+         p->currWord++;
+      }
+      return EXECUTED;
+   }
+   return NOTEXECUTED;
+}
+
+instr nalIfgreater(nalFile *p)
+{
+   int i;
+   char errorLine[ERRORLINELENGTH];
+   bool correct;
+   char syntax[IN2STRWORDS][MAXWORDSIZE] = {"IFGREATER", "(", "VARCON", ",", "VARCON", ")"};
+
+   correct = TRUE;
+
+   if (strsame(p->words[p->currWord], syntax[0])) {
+      p->currWord++;
+      for (i = 1; i < IN2STRWORDS; i++) {
+         if (strsame(syntax[i], "VARCON")) {
+            if (!isvarcon(p)) {
+               correct = FALSE;
+            }
+         } else {
+               if (!strsame(p->words[p->currWord], syntax[i])) {
+               correct = FALSE;
+            }
+         }
+         if (!correct) {
+            sprintf(errorLine, "Expected %s after %s at index %d\n", syntax[i], syntax[i-1], p->currWord);
+            nalERROR(p, errorLine);
+         }
+         p->currWord++;
+      }
+      return EXECUTED;
+   }
+   return NOTEXECUTED;
+}
+
+instr nalInc(nalFile *p)
+{
+   int i;
+   char errorLine[ERRORLINELENGTH];
+   bool correct;
+   char syntax[INCWORDS][MAXWORDSIZE] = {"INC", "(", "NUMVAR", ")"};
+
+   correct = TRUE;
+
+   if (strsame(p->words[p->currWord], syntax[0])) {
+      p->currWord++;
+      for (i = 1; i < INCWORDS; i++) {
+         if (strsame(syntax[i], "NUMVAR")) {
+            if (!isnumvar(p)) {
+               correct = FALSE;
+            }
+         } else {
+            if (!strsame(p->words[p->currWord], syntax[i])) {
+            correct = FALSE;
+            }
+         }
+         if (!correct) {
+            sprintf(errorLine, "Expected %s after %s at index %d\n", syntax[i], syntax[i-1], p->currWord);
+            nalERROR(p, errorLine);
+         }
+         p->currWord++;
+      }
+      return EXECUTED;
+   }
+   return NOTEXECUTED;
+}
+
+instr nalSet(nalFile *p)
+{
+   char errorLine[ERRORLINELENGTH];
+
+   if (isvar(p) && strsame(p->words[p->currWord+1],"=")) {
+      p->currWord+=2;
+   if (!isvarcon(p)) {
+      sprintf(errorLine, "Expected VARCON after = at index %d\n", p->currWord);
+      nalERROR(p, errorLine);
+      }
+      p->currWord++;
+      return EXECUTED;
+   }
+   return NOTEXECUTED;
+}
+
 /*This function exists only for clarity, could just use validVar(p, '#') everywhere instead*/
 bool isnumvar(nalFile *p)
 {
@@ -602,18 +822,15 @@ bool validVar(nalFile *p, char c)
    int i;
 
    if (strlen(p->words[p->currWord])<2) {
-      printf("false 1\n");
       return FALSE;
    }
 
    if (p->words[p->currWord][0]!=c) {
-      printf("false 2\n");
       return FALSE;
    }
 
-   for (i = 1; i < (int)strlen(p->words[p->currWord]-1); i++) {
+   for (i = 1; i < (int)strlen(p->words[p->currWord]); i++) {
       if (!isupper(p->words[p->currWord][i])) {
-         printf("false 3\n");
          return FALSE;
       }
    }
@@ -629,7 +846,7 @@ bool isstrcon(nalFile *p)
    }
 
    first = p->words[p->currWord][0];
-   last = p->words[p->currWord][strlen(p->words[p->currWord]-1)];
+   last = p->words[p->currWord][strlen(p->words[p->currWord])-1];
 
    if (first == '\"' && last == '\"') {
       return TRUE;
@@ -650,6 +867,30 @@ bool isnumcon(nalFile *p)
 
    strtod(p->words[p->currWord], &lastchar);
    if (*lastchar == '\0') {
+      return TRUE;
+   }
+   return FALSE;
+}
+
+bool isvar(nalFile *p)
+{
+   if (isnumvar(p) || isstrvar(p)) {
+      return TRUE;
+   }
+   return FALSE;
+}
+
+bool iscon(nalFile *p)
+{
+   if (isnumcon(p) || isstrcon(p)) {
+      return TRUE;
+   }
+   return FALSE;
+}
+
+bool isvarcon(nalFile *p)
+{
+   if (isvar(p) || iscon(p)) {
       return TRUE;
    }
    return FALSE;
