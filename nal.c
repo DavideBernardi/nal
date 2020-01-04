@@ -27,6 +27,7 @@ Note: This is only used when initially reading in each space-separated string,
 #define MAXWORDSIZE 1000
 #define WORDSINTEST1 4
 #define ERRORLINELENGTH 1000
+#define SYNTAXERRORLENGTH 30
 #define IN2STRWORDS 6
 #define INNUMWORDS 4
 #define RANDWORDS 4
@@ -63,6 +64,7 @@ FILE *getFile(char const file[]);
 nalFile *initNalFile(void);
 void terminateNalFile(nalFile **p);
 void nalERROR(nalFile *p, char* const msg);
+void syntaxERROR(nalFile *p, char const *prevWord, char const *expWord,  int index);
 void ERROR(char* const msg);
 
 /*Syntax*/
@@ -83,15 +85,15 @@ instr nalIfgreater(nalFile *p);
 instr nalInc(nalFile *p);
 instr nalSet(nalFile *p);
 
-bool isstrcon(nalFile *p);
-bool isnumvar(nalFile *p);
-bool isstrvar(nalFile *p);
-bool isnumcon(nalFile *p);
-bool isvar(nalFile *p);
-bool iscon(nalFile *p);
-bool isvarcon(nalFile *p);
+bool isstrcon(char const *word);
+bool isnumvar(char const *word);
+bool isstrvar(char const *word);
+bool isnumcon(char const *word);
+bool isvar(char const *word);
+bool iscon(char const *word);
+bool isvarcon(char const *word);
 
-bool validVar(nalFile *p, char c);
+bool validVar(char const *word, char c);
 
 /*These are used to read in and tokenize the file*/
 list *getWordSizes(FILE *fp);
@@ -114,7 +116,6 @@ int main(int argc, char const *argv[])
    FILE *fp;
    nalFile *p;
    list *wordLengths;
-   /*int i;*/
 
    test();
 
@@ -487,19 +488,16 @@ void instruct(nalFile *p)
       return;
    }
 
-   sprintf(errorLine, "Word \"%s\" doesn't match any syntax rule, terminating\n",p->words[p->currWord]);
+   sprintf(errorLine, "Word \"%s\" (at index %d) doesn't match any syntax rule\n",p->words[p->currWord], p->currWord);
    nalERROR(p, errorLine);
 }
 
 instr file(nalFile *p)
 {
-   char errorLine[ERRORLINELENGTH];
-
    if (strsame(p->words[p->currWord], "FILE")) {
       p->currWord++;
-      if (!isstrcon(p)) {
-         sprintf(errorLine, "Expected STRCON at index %d\n",p->currWord);
-         nalERROR(p, errorLine);
+      if (!isstrcon(p->words[p->currWord])) {
+         syntaxERROR(p, "FILE", "STRCON", p->currWord);
       }
       p->currWord++;
       return EXECUTED;
@@ -532,7 +530,6 @@ instr input(nalFile *p)
 instr in2str(nalFile *p)
 {
    int i;
-   char errorLine[ERRORLINELENGTH];
    bool correct;
    char syntax[IN2STRWORDS][MAXWORDSIZE] = {"IN2STR", "(", "STRVAR", ",", "STRVAR", ")"};
 
@@ -542,7 +539,7 @@ instr in2str(nalFile *p)
       p->currWord++;
       for (i = 1; i < IN2STRWORDS; i++) {
          if (strsame(syntax[i], "STRVAR")) {
-            if (!isstrvar(p)) {
+            if (!isstrvar(p->words[p->currWord])) {
                correct = FALSE;
             }
          } else {
@@ -550,9 +547,8 @@ instr in2str(nalFile *p)
                correct = FALSE;
             }
          }
-         if (!correct) {
-            sprintf(errorLine, "Expected %s after %s at index %d\n", syntax[i], syntax[i-1], p->currWord);
-            nalERROR(p, errorLine);
+         if (!correct) {;
+            syntaxERROR(p, syntax[i-1], syntax[i], p->currWord);
          }
          p->currWord++;
       }
@@ -564,7 +560,6 @@ instr in2str(nalFile *p)
 instr innum(nalFile *p)
 {
    int i;
-   char errorLine[ERRORLINELENGTH];
    bool correct;
    char syntax[INNUMWORDS][MAXWORDSIZE] = {"INNUM", "(", "NUMVAR", ")"};
 
@@ -574,7 +569,7 @@ instr innum(nalFile *p)
       p->currWord++;
       for (i = 1; i < INNUMWORDS; i++) {
          if (strsame(syntax[i], "NUMVAR")) {
-            if (!isnumvar(p)) {
+            if (!isnumvar(p->words[p->currWord])) {
                correct = FALSE;
             }
          } else {
@@ -583,8 +578,7 @@ instr innum(nalFile *p)
             }
          }
          if (!correct) {
-            sprintf(errorLine, "Expected %s after %s at index %d\n", syntax[i], syntax[i-1], p->currWord);
-            nalERROR(p, errorLine);
+            syntaxERROR(p, syntax[i-1], syntax[i], p->currWord);
          }
          p->currWord++;
       }
@@ -595,13 +589,10 @@ instr innum(nalFile *p)
 
 instr jump(nalFile *p)
 {
-   char errorLine[ERRORLINELENGTH];
-
    if (strsame(p->words[p->currWord], "JUMP")) {
       p->currWord++;
-      if (!isnumcon(p)) {
-         sprintf(errorLine, "Expected NUMCON at index %d\n",p->currWord);
-         nalERROR(p, errorLine);
+      if (!isnumcon(p->words[p->currWord])) {
+         syntaxERROR(p, "JUMP", "NUMCON", p->currWord);
       }
       p->currWord++;
       return EXECUTED;
@@ -611,34 +602,12 @@ instr jump(nalFile *p)
 
 instr nalPrint(nalFile *p)
 {
-   char errorLine[ERRORLINELENGTH];
-   bool newLine;
-
-   newLine = FALSE;
-
    if (strsame(p->words[p->currWord], "PRINT") || strsame(p->words[p->currWord], "PRINTN")) {
       p->currWord++;
-      if (!isvarcon(p)) {
-         sprintf(errorLine, "Expected VARCON at index %d\n",p->currWord);
-         nalERROR(p, errorLine);
+      if (!isvarcon(p->words[p->currWord])) {
+         syntaxERROR(p, p->words[p->currWord-1], "VARCON",p->currWord);
       }
       /*if currWord-1 is PRINTN, printf("\n")*/
-      p->currWord++;
-      return EXECUTED;
-   }
-   return NOTEXECUTED;
-}
-
-instr nalPrintn(nalFile *p)
-{
-   char errorLine[ERRORLINELENGTH];
-
-   if (strsame(p->words[p->currWord], "PRINT")) {
-      p->currWord++;
-      if (!isvarcon(p)) {
-         sprintf(errorLine, "Expected VARCON at index %d\n",p->currWord);
-         nalERROR(p, errorLine);
-      }
       p->currWord++;
       return EXECUTED;
    }
@@ -648,7 +617,6 @@ instr nalPrintn(nalFile *p)
 instr nalRnd(nalFile *p)
 {
    int i;
-   char errorLine[ERRORLINELENGTH];
    bool correct;
    char syntax[RANDWORDS][MAXWORDSIZE] = {"RND", "(", "NUMVAR", ")"};
 
@@ -658,7 +626,7 @@ instr nalRnd(nalFile *p)
       p->currWord++;
       for (i = 1; i < RANDWORDS; i++) {
          if (strsame(syntax[i], "NUMVAR")) {
-            if (!isnumvar(p)) {
+            if (!isnumvar(p->words[p->currWord])) {
                correct = FALSE;
             }
          } else {
@@ -667,8 +635,7 @@ instr nalRnd(nalFile *p)
             }
          }
          if (!correct) {
-            sprintf(errorLine, "Expected %s after %s at index %d\n", syntax[i], syntax[i-1], p->currWord);
-            nalERROR(p, errorLine);
+            syntaxERROR(p, syntax[i-1], syntax[i], p->currWord);
          }
          p->currWord++;
       }
@@ -679,12 +646,9 @@ instr nalRnd(nalFile *p)
 
 instr nalIfcond(nalFile *p)
 {
-   char errorLine[ERRORLINELENGTH];
-
    if (nalIfequal(p) == EXECUTED || nalIfgreater(p) == EXECUTED) {
       if (!strsame(p->words[p->currWord], "{")) {
-         sprintf(errorLine, "Expected { after CONDITION at index %d\n", p->currWord);
-         nalERROR(p, errorLine);
+         syntaxERROR(p, "CONDITION", "{", p->currWord);
       }
       p->currWord++;
       instrs(p);
@@ -696,7 +660,6 @@ instr nalIfcond(nalFile *p)
 instr nalIfequal(nalFile *p)
 {
    int i;
-   char errorLine[ERRORLINELENGTH];
    bool correct;
    char syntax[IN2STRWORDS][MAXWORDSIZE] = {"IFEQUAL", "(", "VARCON", ",", "VARCON", ")"};
 
@@ -706,7 +669,7 @@ instr nalIfequal(nalFile *p)
       p->currWord++;
       for (i = 1; i < IN2STRWORDS; i++) {
          if (strsame(syntax[i], "VARCON")) {
-            if (!isvarcon(p)) {
+            if (!isvarcon(p->words[p->currWord])) {
                correct = FALSE;
             }
          } else {
@@ -715,8 +678,7 @@ instr nalIfequal(nalFile *p)
             }
          }
          if (!correct) {
-            sprintf(errorLine, "Expected %s after %s at index %d\n", syntax[i], syntax[i-1], p->currWord);
-            nalERROR(p, errorLine);
+            syntaxERROR(p, syntax[i-1], syntax[i], p->currWord);
          }
          p->currWord++;
       }
@@ -728,7 +690,6 @@ instr nalIfequal(nalFile *p)
 instr nalIfgreater(nalFile *p)
 {
    int i;
-   char errorLine[ERRORLINELENGTH];
    bool correct;
    char syntax[IN2STRWORDS][MAXWORDSIZE] = {"IFGREATER", "(", "VARCON", ",", "VARCON", ")"};
 
@@ -738,7 +699,7 @@ instr nalIfgreater(nalFile *p)
       p->currWord++;
       for (i = 1; i < IN2STRWORDS; i++) {
          if (strsame(syntax[i], "VARCON")) {
-            if (!isvarcon(p)) {
+            if (!isvarcon(p->words[p->currWord])) {
                correct = FALSE;
             }
          } else {
@@ -747,8 +708,7 @@ instr nalIfgreater(nalFile *p)
             }
          }
          if (!correct) {
-            sprintf(errorLine, "Expected %s after %s at index %d\n", syntax[i], syntax[i-1], p->currWord);
-            nalERROR(p, errorLine);
+            syntaxERROR(p, syntax[i-1], syntax[i], p->currWord);
          }
          p->currWord++;
       }
@@ -760,7 +720,6 @@ instr nalIfgreater(nalFile *p)
 instr nalInc(nalFile *p)
 {
    int i;
-   char errorLine[ERRORLINELENGTH];
    bool correct;
    char syntax[INCWORDS][MAXWORDSIZE] = {"INC", "(", "NUMVAR", ")"};
 
@@ -770,7 +729,7 @@ instr nalInc(nalFile *p)
       p->currWord++;
       for (i = 1; i < INCWORDS; i++) {
          if (strsame(syntax[i], "NUMVAR")) {
-            if (!isnumvar(p)) {
+            if (!isnumvar(p->words[p->currWord])) {
                correct = FALSE;
             }
          } else {
@@ -779,8 +738,7 @@ instr nalInc(nalFile *p)
             }
          }
          if (!correct) {
-            sprintf(errorLine, "Expected %s after %s at index %d\n", syntax[i], syntax[i-1], p->currWord);
-            nalERROR(p, errorLine);
+            syntaxERROR(p, syntax[i-1], syntax[i], p->currWord);
          }
          p->currWord++;
       }
@@ -791,13 +749,10 @@ instr nalInc(nalFile *p)
 
 instr nalSet(nalFile *p)
 {
-   char errorLine[ERRORLINELENGTH];
-
-   if (isvar(p) && strsame(p->words[p->currWord+1],"=")) {
+   if (isvar(p->words[p->currWord]) && strsame(p->words[p->currWord+1],"=")) {
       p->currWord+=2;
-   if (!isvarcon(p)) {
-      sprintf(errorLine, "Expected VARCON after = at index %d\n", p->currWord);
-      nalERROR(p, errorLine);
+   if (!isvarcon(p->words[p->currWord])) {
+      syntaxERROR(p, "=", "VARCON", p->currWord);
       }
       p->currWord++;
       return EXECUTED;
@@ -806,47 +761,47 @@ instr nalSet(nalFile *p)
 }
 
 /*This function exists only for clarity, could just use validVar(p, '#') everywhere instead*/
-bool isnumvar(nalFile *p)
+bool isnumvar(char const *word)
 {
-   return validVar(p, '%');
+   return validVar(word, '%');
 }
 
 /*This function exists only for clarity, could just use validVar(p, '$') everywhere instead*/
-bool isstrvar(nalFile *p)
+bool isstrvar(char const *word)
 {
-   return validVar(p, '$');
+   return validVar(word, '$');
 }
 
-bool validVar(nalFile *p, char c)
+bool validVar(char const *word, char c)
 {
    int i;
 
-   if (strlen(p->words[p->currWord])<2) {
+   if (strlen(word)<2) {
       return FALSE;
    }
 
-   if (p->words[p->currWord][0]!=c) {
+   if (word[0]!=c) {
       return FALSE;
    }
 
-   for (i = 1; i < (int)strlen(p->words[p->currWord]); i++) {
-      if (!isupper(p->words[p->currWord][i])) {
+   for (i = 1; i < (int)strlen(word); i++) {
+      if (!isupper(word[i])) {
          return FALSE;
       }
    }
    return TRUE;
 }
 
-bool isstrcon(nalFile *p)
+bool isstrcon(char const *word)
 {
    char first, last;
 
-   if (strlen(p->words[p->currWord])<2) {
+   if (strlen(word)<2) {
       return FALSE;
    }
 
-   first = p->words[p->currWord][0];
-   last = p->words[p->currWord][strlen(p->words[p->currWord])-1];
+   first = word[0];
+   last = word[strlen(word)-1];
 
    if (first == '\"' && last == '\"') {
       return TRUE;
@@ -857,40 +812,40 @@ bool isstrcon(nalFile *p)
    return FALSE;
 }
 
-bool isnumcon(nalFile *p)
+bool isnumcon(char const *word)
 {
    char *lastchar;
 
-   if (strlen(p->words[p->currWord])<1) {
+   if (strlen(word)<1) {
       return FALSE;
    }
 
-   strtod(p->words[p->currWord], &lastchar);
+   strtod(word, &lastchar);
    if (*lastchar == '\0') {
       return TRUE;
    }
    return FALSE;
 }
 
-bool isvar(nalFile *p)
+bool isvar(char const *word)
 {
-   if (isnumvar(p) || isstrvar(p)) {
+   if (isnumvar(word) || isstrvar(word)) {
       return TRUE;
    }
    return FALSE;
 }
 
-bool iscon(nalFile *p)
+bool iscon(char const *word)
 {
-   if (isnumcon(p) || isstrcon(p)) {
+   if (isnumcon(word) || isstrcon(word)) {
       return TRUE;
    }
    return FALSE;
 }
 
-bool isvarcon(nalFile *p)
+bool isvarcon(char const *word)
 {
-   if (isvar(p) || iscon(p)) {
+   if (isvar(word) || iscon(word)) {
       return TRUE;
    }
    return FALSE;
@@ -900,6 +855,25 @@ void nalERROR(nalFile *p, char* const msg)
 {
    terminateNalFile(&p);
    ERROR(msg);
+}
+
+void syntaxERROR(nalFile *p, char const *prevWord, char const *expWord,  int index)
+{
+   char *errorLine;
+   int errorLineLength;
+
+   errorLineLength = SYNTAXERRORLENGTH;
+   errorLineLength += strlen(expWord);
+   errorLineLength += strlen(prevWord);
+
+   errorLine = (char *)allocate(errorLineLength*sizeof(char),"Error Line");
+
+   sprintf(errorLine, "Expected %s after %s at index %d\n", expWord, prevWord, index);
+
+   terminateNalFile(&p);
+   fprintf(stderr, "%s", errorLine);
+   free(errorLine);
+   exit(EXIT_FAILURE);
 }
 
 void *allocate(int size, char* const msg)

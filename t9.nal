@@ -5,6 +5,12 @@
    RND ( %N )
    PRINT "Hello World! From test1"
    PRINTN "Hello World! From test1"
+   IFEQUAL ( $WHERECHEK , "SE" ) {
+      PRINT $SECHEKSE
+   }
+   IFGREATER ( $WHERECHEK , "SW" ) {
+      PRINT $BIKESOLO
+   }
    $A = "Hello"
    %B = 17.6
    INC ( %ABC )
