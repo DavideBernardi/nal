@@ -812,6 +812,7 @@ bool isstrcon(char const *word)
    return FALSE;
 }
 
+/*In this function strtod()'s output is unused, maybe somehow use it?*/
 bool isnumcon(char const *word)
 {
    char *lastchar;
