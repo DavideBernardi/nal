@@ -4,6 +4,13 @@
       2. Maybe have it handle all the free() in case of unexpected nalAbort
       3. Maybe change exit() to something else which makes it possible to
          quit one file without stopping the whole execution
+
+
+Possible Improvement:
+   Instead of just having currword++, have a nextWord(p) function which checks
+   whether we are currently on the last word
+   (if currWord == totWords-1
+      nalERROR("More words expected"))
 */
 
 #include <stdio.h>
@@ -11,6 +18,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <time.h>
+#include <ctype.h>
 
 
 /*Maximum size of a single %s pulled from the file,
@@ -19,6 +27,8 @@ Note: This is only used when initially reading in each space-separated string,
 #define MAXWORDSIZE 1000
 #define WORDSINTEST1 4
 #define ERRORLINELENGTH 1000
+#define IN2STRWORDS 6
+#define INNUMWORDS 4
 #define strsame(A,B) (strcmp(A, B)==0)
 
 typedef enum {FALSE, TRUE} bool;
@@ -58,8 +68,17 @@ void instrs(nalFile *p);
 void instruct(nalFile *p);
 instr file(nalFile *p);
 instr nalAbort(nalFile *p);
+instr input(nalFile *p);
+instr in2str(nalFile *p);
+instr innum(nalFile *p);
+instr jump(nalFile *p);
 
 bool isstrcon(nalFile *p);
+bool isnumvar(nalFile *p);
+bool isstrvar(nalFile *p);
+bool isnumcon(nalFile *p);
+
+bool validVar(nalFile *p, char c);
 
 /*These are used to read in and tokenize the file*/
 list *getWordSizes(FILE *fp);
@@ -437,6 +456,12 @@ void instruct(nalFile *p)
    if (file(p)==EXECUTED) {
       return;
    }
+   if (input(p)==EXECUTED) {
+      return;
+   }
+   if (jump(p)==EXECUTED) {
+      return;
+   }
 
    sprintf(errorLine, "Word \"%s\" doesn't match any syntax rule, terminating\n",p->words[p->currWord]);
    nalERROR(p, errorLine);
@@ -467,9 +492,141 @@ instr nalAbort(nalFile *p)
    return NOTEXECUTED;
 }
 
+instr input(nalFile *p)
+{
+
+   if (in2str(p) == EXECUTED) {
+      return EXECUTED;
+   }
+   if (innum(p) == EXECUTED) {
+      return EXECUTED;
+   }
+   return NOTEXECUTED;
+
+}
+
+instr in2str(nalFile *p)
+{
+   int i;
+   char errorLine[ERRORLINELENGTH];
+   bool correct;
+   char syntax[IN2STRWORDS][MAXWORDSIZE] = {"IN2STR", "(", "STRVAR", ",", "STRVAR", ")"};
+
+   correct = TRUE;
+
+   if (strsame(p->words[p->currWord], syntax[0])) {
+      p->currWord++;
+      for (i = 1; i < IN2STRWORDS; i++) {
+         if (strsame(syntax[i], "STRVAR")) {
+            if (!isstrvar(p)) {
+               correct = FALSE;
+            }
+         } else {
+               if (!strsame(p->words[p->currWord], syntax[i])) {
+               correct = FALSE;
+            }
+         }
+         if (!correct) {
+            sprintf(errorLine, "Expected %s after %s at index %d\n", syntax[i], syntax[i-1], p->currWord);
+            nalERROR(p, errorLine);
+         }
+         p->currWord++;
+      }
+      return EXECUTED;
+   }
+   return NOTEXECUTED;
+}
+
+instr innum(nalFile *p)
+{
+   int i;
+   char errorLine[ERRORLINELENGTH];
+   bool correct;
+   char syntax[INNUMWORDS][MAXWORDSIZE] = {"INNUM", "(", "NUMVAR", ")"};
+
+   correct = TRUE;
+
+   if (strsame(p->words[p->currWord], syntax[0])) {
+      p->currWord++;
+      for (i = 1; i < INNUMWORDS; i++) {
+         if (strsame(syntax[i], "NUMVAR")) {
+            if (!isnumvar(p)) {
+               correct = FALSE;
+            }
+         } else {
+               if (!strsame(p->words[p->currWord], syntax[i])) {
+               correct = FALSE;
+            }
+         }
+         if (!correct) {
+            sprintf(errorLine, "Expected %s after %s at index %d\n", syntax[i], syntax[i-1], p->currWord);
+            nalERROR(p, errorLine);
+         }
+         p->currWord++;
+      }
+      return EXECUTED;
+   }
+   return NOTEXECUTED;
+}
+
+instr jump(nalFile *p)
+{
+   char errorLine[ERRORLINELENGTH];
+
+   if (strsame(p->words[p->currWord], "JUMP")) {
+      p->currWord++;
+      if (!isnumcon(p)) {
+         sprintf(errorLine, "Expected NUMCON at index %d\n",p->currWord);
+         nalERROR(p, errorLine);
+      }
+      p->currWord++;
+      return EXECUTED;
+   }
+   return NOTEXECUTED;
+}
+
+/*This function exists only for clarity, could just use validVar(p, '#') everywhere instead*/
+bool isnumvar(nalFile *p)
+{
+   return validVar(p, '%');
+}
+
+/*This function exists only for clarity, could just use validVar(p, '$') everywhere instead*/
+bool isstrvar(nalFile *p)
+{
+   return validVar(p, '$');
+}
+
+bool validVar(nalFile *p, char c)
+{
+   int i;
+
+   if (strlen(p->words[p->currWord])<2) {
+      printf("false 1\n");
+      return FALSE;
+   }
+
+   if (p->words[p->currWord][0]!=c) {
+      printf("false 2\n");
+      return FALSE;
+   }
+
+   for (i = 1; i < (int)strlen(p->words[p->currWord]-1); i++) {
+      if (!isupper(p->words[p->currWord][i])) {
+         printf("false 3\n");
+         return FALSE;
+      }
+   }
+   return TRUE;
+}
+
 bool isstrcon(nalFile *p)
 {
    char first, last;
+
+   if (strlen(p->words[p->currWord])<2) {
+      return FALSE;
+   }
 
    first = p->words[p->currWord][0];
    last = p->words[p->currWord][strlen(p->words[p->currWord]-1)];
@@ -478,6 +635,21 @@ bool isstrcon(nalFile *p)
       return TRUE;
    }
    if (first == '#' && last == '#') {
+      return TRUE;
+   }
+   return FALSE;
+}
+
+bool isnumcon(nalFile *p)
+{
+   char *lastchar;
+
+   if (strlen(p->words[p->currWord])<1) {
+      return FALSE;
+   }
+
+   strtod(p->words[p->currWord], &lastchar);
+   if (*lastchar == '\0') {
       return TRUE;
    }
    return FALSE;

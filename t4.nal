@@ -1,0 +1,6 @@
+{
+   FILE "filename.nal"
+   IN2STR ( $C , $ZER )
+   INNUM ( %NV )
+   ABORT
+}
