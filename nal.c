@@ -33,10 +33,17 @@ Note: This is only used when initially reading in each space-separated string,
 #define RANDWORDS 4
 #define INCWORDS 4
 #define SETWORDS 3
+
+#define ROT13 13
+#define ALPHABET 26
+#define ROT18 18
+#define NUMBASE 10
+
 #define strsame(A,B) (strcmp(A, B)==0)
 
 typedef enum {FALSE, TRUE} bool;
 typedef enum {NOTEXECUTED, EXECUTED} instr;
+typedef enum {NUM, STR, ROTSTR} vartype;
 
 typedef struct nalFile{
    char **words;
@@ -44,15 +51,34 @@ typedef struct nalFile{
    int totWords;
 } nalFile;
 
-typedef struct node{
-   int data;
-   struct node *next;
-}node;
+typedef struct fileNode{
+   nalFile *file;
+   struct fileNode *prev;
+}fileNode;
 
-typedef struct list{
-   node *head;
+/*Note: if type == NUM, strval == NULL - other way around if type == STR or ROTSTR*/
+typedef struct nalVar{
+   vartype type;
+   char *varname;
+   char *strval;
+   double *numval;
+}nalVar;
+
+typedef struct nalProg{
+   fileNode *curr;
+   nalVar **vars;
+
+}nalProg;
+
+typedef struct intNode{
+   int data;
+   struct intNode *next;
+}intNode;
+
+typedef struct intList{
+   intNode *head;
    int size;
-}list;
+}intList;
 
 /*Testing*/
 void test(void);
@@ -63,9 +89,21 @@ void checkInput(int argc, char const *argv[]);
 FILE *getFile(char const file[]);
 nalFile *initNalFile(void);
 void terminateNalFile(nalFile **p);
+void setupNalFile(nalFile *p, char const file[]);
 void nalERROR(nalFile *p, char* const msg);
 void syntaxERROR(nalFile *p, char const *prevWord, char const *expWord,  int index);
 void ERROR(char* const msg);
+
+/*These are used to read in and tokenize the file*/
+intList *getWordSizes(FILE *fp);
+int wordLength(char const *currWord, FILE *fp, intList *wordLens);
+void tokenizeFile(nalFile *p, FILE *fp, intList *wordLengths);
+void getWord(char *word, FILE* fp);
+void strAppend(char *word, char c);
+bool multiWordString(char const *word);
+/*These are for an int linked intList used within getWordSizes*/
+intNode *allocateNode(int i);
+void freeList(intList **p);
 
 /*Syntax*/
 void program(nalFile *p);
@@ -95,16 +133,10 @@ bool isvarcon(char const *word);
 
 bool validVar(char const *word, char c);
 
-/*These are used to read in and tokenize the file*/
-list *getWordSizes(FILE *fp);
-int wordLength(char const *currWord, FILE *fp, list *wordLens);
-void tokenizeFile(nalFile *p, FILE *fp, list *wordLengths);
-void getWord(char *word, FILE* fp);
-void strAppend(char *word, char c);
-bool multiWordString(char const *word);
-/*These are for an int linked list used within getWordSizes*/
-node *allocateNode(int i);
-void freeList(list **p);
+/*Interpreting*/
+char *getString(char const* word);
+char unROT(char c);
+bool isnumber(char c);
 
 /*These are malloc and calloc but also give errors if they fail to allocate*/
 void *allocate(int size, char* const msg);
@@ -113,27 +145,20 @@ void *callocate(int size1, int size2, char* const msg);
 
 int main(int argc, char const *argv[])
 {
-   FILE *fp;
    nalFile *p;
-   list *wordLengths;
 
    test();
 
    checkInput(argc, argv);
-   fp = getFile(argv[1]);
-
-   wordLengths = getWordSizes(fp);
    p = initNalFile();
-   tokenizeFile(p, fp, wordLengths);
-   fclose(fp);
-
+   setupNalFile(p, argv[1]);
    program(p);
+   #ifndef INTERP
    printf("Parsed OK\n");
-
+   #endif
    terminateNalFile(&p);
    return 0;
 }
-
 
 void test(void)
 {
@@ -156,9 +181,9 @@ void test(void)
 
 void testTokenization(void)
 {
-   node *n, *curr, *oldNode;
+   intNode *n, *curr, *oldNode;
    FILE *testFile;
-   list *wordLengths;
+   intList *wordLengths;
    char testWord[MAXWORDSIZE];
    nalFile *testNal;
    int i;
@@ -247,6 +272,17 @@ FILE *getFile(char const file[])
    return ifp;
 }
 
+void setupNalFile(nalFile *p, char const file[])
+{
+   FILE *fp;
+   intList *wordLengths;
+
+   fp = getFile(file);
+   wordLengths = getWordSizes(fp);
+   tokenizeFile(p, fp, wordLengths);
+   fclose(fp);
+}
+
 nalFile *initNalFile(void)
 {
    nalFile *p;
@@ -275,15 +311,15 @@ void terminateNalFile(nalFile **p)
    *p = NULL;
 }
 
-/* Return a list containing the exact size of each word in the file,
-   the list structure also contains the total number of words. */
-list *getWordSizes(FILE *fp)
+/* Return a intList containing the exact size of each word in the file,
+   the intList structure also contains the total number of words. */
+intList *getWordSizes(FILE *fp)
 {
    char currWord[MAXWORDSIZE];
-   list *wordLens;
-   node *curr;
+   intList *wordLens;
+   intNode *curr;
 
-   wordLens = allocate(sizeof(list), "List");
+   wordLens = allocate(sizeof(intList), "List");
    wordLens->size = 0;
 
    if (fscanf(fp, "%s", currWord)==1) {
@@ -308,7 +344,7 @@ list *getWordSizes(FILE *fp)
 /*Finds length of the input word, if the word is the start of a string,
 it moves along the file until it finds the end of that string as strings count
 as one word*/
-int wordLength(char const *currWord, FILE *fp, list *wordLens)
+int wordLength(char const *currWord, FILE *fp, intList *wordLens)
 {
    int wordLen;
    char c, charToMatch;
@@ -331,9 +367,9 @@ int wordLength(char const *currWord, FILE *fp, list *wordLens)
 }
 
 /*allocates the exact amount of space for the array of words and then fills it up*/
-void tokenizeFile(nalFile *p, FILE *fp, list *wordLengths)
+void tokenizeFile(nalFile *p, FILE *fp, intList *wordLengths)
 {
-   node *curr, *oldNode;
+   intNode *curr, *oldNode;
    int i;
 
    p->words = (char **)callocate(sizeof(char *), wordLengths->size, "Words");
@@ -409,10 +445,10 @@ bool multiWordString(char const *word)
    return FALSE;
 }
 
-void freeList(list **p)
+void freeList(intList **p)
 {
-   node *curr, *oldNode;
-   list *l;
+   intNode *curr, *oldNode;
+   intList *l;
 
    l = *p;
 
@@ -427,11 +463,11 @@ void freeList(list **p)
    *p = NULL;
 }
 
-node *allocateNode(int i)
+intNode *allocateNode(int i)
 {
-   node *n;
+   intNode *n;
 
-   n = allocate(sizeof(node), "Node");
+   n = allocate(sizeof(intNode), "Node");
 
    n->data = i;
    n->next = NULL;
@@ -494,20 +530,83 @@ void instruct(nalFile *p)
 
 instr file(nalFile *p)
 {
+   #ifdef INTERP
+   nalFile *newFile;
+   char *fileName;
+   #endif
+
    if (strsame(p->words[p->currWord], "FILE")) {
       p->currWord++;
       if (!isstrcon(p->words[p->currWord])) {
          syntaxERROR(p, "FILE", "STRCON", p->currWord);
       }
+      #ifdef INTERP
+      fileName = getString(p->words[p->currWord]);
+      newFile = initNalFile();
+      setupNalFile(newFile, fileName);
+      free(fileName);
+      program(newFile);
+      terminateNalFile(&newFile);
+      #endif
       p->currWord++;
       return EXECUTED;
    }
    return NOTEXECUTED;
 }
 
+char *getString(char const* word)
+{
+   char *str;
+   int strSize, i;
+
+   /*-2 spaces to ger rid of "" or ##*/
+   strSize = strlen(word)-2;
+
+   str = (char *)allocate(sizeof(char)*(strSize+1), "String");
+   if (word[0]=='\"') {
+      for (i = 0; i < strSize; i++) {
+         str[i] = word[i+1];
+      }
+      str[strSize] = '\0';
+   } else {
+      for (i = 0; i < strSize; i++) {
+         str[i] = unROT(word[i+1]);
+      }
+      str[strSize] = '\0';
+   }
+   return str;
+}
+
+char unROT(char c)
+{
+   if (islower(c)) {
+      c = c - 'a';
+      c = (c-ROT13)%ALPHABET;
+   } else if (isupper(c)) {
+      c = c - 'A';
+      c = (c-ROT13)%ALPHABET;
+   } else if (isnumber(c)) {
+      c = c-'0';
+      c = (c-ROT18)%NUMBASE;
+   }
+   return c;
+}
+
+bool isnumber(char c)
+{
+   if (c>=0 && c<=9) {
+      return TRUE;
+   }
+   return FALSE;
+}
+
 instr nalAbort(nalFile *p)
 {
    if (strsame(p->words[p->currWord], "ABORT")) {
+      #ifdef INTERP
+         terminateNalFile(&p);
+         exit(EXIT_SUCCESS);
+      #endif
       p->currWord++;
       return EXECUTED;
    }

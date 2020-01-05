@@ -3,13 +3,12 @@ SFLAGS = -fsanitize=address -fsanitize=undefined -g3 -lm
 DFLAGS = -Wall -Wextra -pedantic -ansi -g3 -lm
 CC = clang
 BASE = nal
-BEXECS = parse
-SEXECS = parse_s
-DEXECS = parse_d
+BEXECS = parse interp
+SEXECS = parse_s interp_s
+DEXECS = parse_d interp_d
 EXECS = $(BEXECS) $(SEXECS) $(DEXECS)
 
 all : $(BEXECS)
-
 
 parse : $(BASE).c
 		$(CC) $(BASE).c $(CFLAGS) -o $@
@@ -19,8 +18,15 @@ parse_d : $(BASE).c
 		$(CC) $(BASE).c $(DFLAGS) -o $@
 
 
+interp : $(BASE).c
+		$(CC) $(BASE).c $(CFLAGS) -o $@ -DINTERP
+interp_s : $(BASE).c
+		$(CC) $(BASE).c $(SFLAGS) -o $@ -DINTERP
+interp_d : $(BASE).c
+		$(CC) $(BASE).c $(DFLAGS) -o $@ -DINTERP
 
-test : testparse
+
+test : testparse testinterp
 
 testparse : parse_s parse_d
 	valgrind ./parse_d test1.$(BASE)
@@ -65,6 +71,14 @@ testparse : parse_s parse_d
 	./parse_s labse.$(BASE)
 	./parse_s labsw.$(BASE)
 	./parse_s munge.$(BASE)
+
+testinterp : interp_s interp_d
+	valgrind ./interp_d t1.$(BASE)
+	valgrind ./interp_d t2.$(BASE)
+	valgrind ./interp_d t3.$(BASE)
+	./interp_s t1.$(BASE)
+	./interp_s t2.$(BASE)
+	./interp_s t3.$(BASE)
 
 
 
