@@ -1,9 +1,18 @@
 /*To do:
-   - Change ERROR macro (make into a function?)
-      1. Have it output some more useful information
-      2. Maybe have it handle all the free() in case of unexpected nalAbort
-      3. Maybe change exit() to something else which makes it possible to
-         quit one file without stopping the whole execution
+ADD UNIT TESTING FOR:
+   getString()
+   unROT
+   isnumber
+   isnumvar
+   isstrvar
+   validVar
+   isstrcon
+   isnumcon
+   isvar
+   iscon
+   isvarcon
+
+The Abort function now just simply sets the currWord to the last word, so the program then ends itself as expected. Check that this works by making a bunch of .nal files that call each other and abort at weird places
 
 
 Possible Improvement:
@@ -11,6 +20,8 @@ Possible Improvement:
    whether we are currently on the last word
    (if currWord == totWords-1
       nalERROR("More words expected"))
+
+
 */
 
 #include <stdio.h>
@@ -265,7 +276,7 @@ FILE *getFile(char const file[])
 
    ifp = fopen(file, "rb");
    if (ifp == NULL) {
-      fprintf(stderr, "Failed to open file\n");
+      fprintf(stderr, "Failed to open file \"%s\"\nTerminating . . .\n", file);
       exit(EXIT_FAILURE);
    }
 
@@ -300,6 +311,10 @@ void terminateNalFile(nalFile **p)
 {
    nalFile *q;
    int i;
+
+   if (*p == NULL) {
+      return;
+   }
 
    q = *p;
 
@@ -600,12 +615,13 @@ bool isnumber(char c)
    return FALSE;
 }
 
+/*To ABORT, just push the index to the last word*/
 instr nalAbort(nalFile *p)
 {
    if (strsame(p->words[p->currWord], "ABORT")) {
       #ifdef INTERP
-         terminateNalFile(&p);
-         exit(EXIT_SUCCESS);
+      p->currWord = p->totWords-1;
+      return EXECUTED;
       #endif
       p->currWord++;
       return EXECUTED;
