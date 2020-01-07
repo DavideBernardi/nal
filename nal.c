@@ -2,15 +2,7 @@
 ADD UNIT TESTING FOR:
    getString()
    unROT
-   isnumber
-   isnumvar
-   isstrvar
-   validVar
-   isstrcon
-   isnumcon
-   isvar
-   iscon
-   isvarcon
+
 
 The Abort function now just simply sets the currWord to the last word, so the program then ends itself as expected. Check that this works by making a bunch of .nal files that call each other and abort at weird places
 
@@ -36,18 +28,30 @@ Possible Improvement:
 Note: This is only used when initially reading in each space-separated string,
       actual words are then stored in properly allocated memory.*/
 #define MAXWORDSIZE 1000
-#define WORDSINTEST1 4
+/*Maximum size of the error message outputted when a word doesn't match any syntax rule.
+Only used once in instruct().
+NOTE: Risky, since if the word is a string the total length could be >1000*/
 #define ERRORLINELENGTH 1000
+#define WORDSINTEST1 4
+
+/*Initial size of the error message outputted when a syntax rule is broken.
+Note: Safe, as the function syntaxERROR() safely allocates space based on the
+size of the message.*/
 #define SYNTAXERRORLENGTH 30
+
+/*Number of words that are part of each of these rule's syntax
+i.e. <IN2STR> = "IN2STR", "(", "STRVAR", ",", "STRVAR", ")"
+6 words in total*/
 #define IN2STRWORDS 6
 #define INNUMWORDS 4
 #define RANDWORDS 4
 #define INCWORDS 4
 #define SETWORDS 3
 
-#define ROT13 13
+/*Used in unROT()*/
+#define ROTCHAR 13
 #define ALPHABET 26
-#define ROT18 18
+#define ROTNUM 18
 #define NUMBASE 10
 
 #define strsame(A,B) (strcmp(A, B)==0)
@@ -94,6 +98,8 @@ typedef struct intList{
 /*Testing*/
 void test(void);
 void testTokenization(void);
+void testParsingFunctions(void);
+void testInterpFunctions(void);
 
 /*General*/
 void checkInput(int argc, char const *argv[]);
@@ -101,6 +107,7 @@ FILE *getFile(char const file[]);
 nalFile *initNalFile(void);
 void terminateNalFile(nalFile **p);
 void setupNalFile(nalFile *p, char const file[]);
+void wordStep(nalFile *p, int s);
 void nalERROR(nalFile *p, char* const msg);
 void syntaxERROR(nalFile *p, char const *prevWord, char const *expWord,  int index);
 void ERROR(char* const msg);
@@ -188,6 +195,8 @@ void test(void)
    assert(p==NULL);
 
    testTokenization();
+   testParsingFunctions();
+   testInterpFunctions();
 }
 
 void testTokenization(void)
@@ -259,7 +268,104 @@ void testTokenization(void)
    for (i = 0; i < WORDSINTEST1; i++) {
       assert(strsame(testNal->words[i],wordsInTest1[i]));
    }
+
+   /*Testing wordStep*/
+   for (i = 1; i < WORDSINTEST1; i++) {
+      wordStep(testNal, 1);
+      assert(strsame(testNal->words[testNal->currWord],wordsInTest1[i]));
+   }
+
    terminateNalFile(&testNal);
+}
+
+void testParsingFunctions(void)
+{
+   /*Test validVar*/
+   assert(validVar("$C",'$'));
+   assert(validVar("$VARNAME",'$'));
+   assert(validVar("$VERYVERYVERYVERYLONGVARNAME",'$'));
+   assert(!validVar("$",'$'));
+   assert(!validVar("",'$'));
+   assert(!validVar("$c",'$'));
+   assert(!validVar("$varname",'$'));
+   assert(!validVar("$veryveryveryverylongvarname",'$'));
+   assert(!validVar("$1numbersarenotallowed",'$'));
+   assert(!validVar("NOTAVAR",'$'));
+
+   assert(validVar("%C",'%'));
+   assert(validVar("%VARNAME",'%'));
+   assert(validVar("%VERYVERYVERYVERYLONGVARNAME",'%'));
+   assert(!validVar("%",'%'));
+   assert(!validVar("",'%'));
+   assert(!validVar("%c",'%'));
+   assert(!validVar("%varname",'%'));
+   assert(!validVar("%veryveryveryverylongvarname",'%'));
+   assert(!validVar("%1numbersarenotallowed",'%'));
+   assert(!validVar("NOTAVAR",'%'));
+
+   /*Test isnumvar*/
+   assert(isnumvar("%C"));
+   assert(isnumvar("%VARNAME"));
+   assert(isnumvar("%VERYVERYVERYVERYLONGVARNAME"));
+   assert(!isnumvar("%"));
+   assert(!isnumvar(""));
+   assert(!isnumvar("%c"));
+   assert(!isnumvar("%varname"));
+   assert(!isnumvar("%veryveryveryverylongvarname"));
+   assert(!isnumvar("%1numbersarenotallowed"));
+   assert(!isnumvar("NOTAVAR"));
+
+   /*Test isstrvar*/
+   assert(isstrvar("$C"));
+   assert(isstrvar("$VARNAME"));
+   assert(isstrvar("$VERYVERYVERYVERYLONGVARNAME"));
+   assert(!isstrvar("$"));
+   assert(!isstrvar(""));
+   assert(!isstrvar("$c"));
+   assert(!isstrvar("$varname"));
+   assert(!isstrvar("$veryveryveryverylongvarname"));
+   assert(!isstrvar("$1numbersarenotallowed"));
+   assert(!isstrvar("NOTAVAR"));
+
+   /*Test isstrcon*/
+   assert(isstrcon("\"\""));
+   assert(isstrcon("\"Hello World!\""));
+   assert(isstrcon("\"If I have #hashtags in a string they don't interrupt the syntax\""));
+   assert(isstrcon("\"Even if I have #two#\""));
+   assert(!isstrcon("\"If not at the end, \" is not a string"));
+   assert(isstrcon("\"1413\""));
+   assert(!isstrcon("Not a string"));
+   assert(!isstrcon("SOMEVAR"));
+   assert(!isstrcon("#SOMEVAR"));
+   assert(isstrcon("\"\""));
+   assert(isstrcon("#Hello World!#"));
+   assert(isstrcon("#If I have \"quotes in a string they don't interrupt the syntax#"));
+   assert(isstrcon("#Even if I have \"two\"#"));
+   assert(!isstrcon("#If not at the end, # is not a string"));
+
+
+   /*Test isnumcon*/
+   assert(!isnumcon(""));
+   assert(isnumcon("0"));
+   assert(isnumcon("0.0"));
+   assert(isnumcon("1"));
+   assert(isnumcon("-1"));
+   assert(isnumcon("652353.14132"));
+   assert(isnumcon("-524243.15345345"));
+   assert(!isnumcon("4,3"));
+   assert(!isnumcon("SOMEWORD"));
+   assert(!isnumcon("123F123"));
+
+   /*No need to test isvar(), iscon(), isvarcon() because they are just unions of other functions*/
+}
+
+void testInterpFunctions(void)
+{
+   /*Test unROT*/
+
+
+   /*Test getString*/
+
 }
 
 void checkInput(int argc, char const *argv[])
@@ -344,7 +450,7 @@ intList *getWordSizes(FILE *fp)
    } else {
       fclose(fp);
       free(wordLens);
-      ERROR("Empty file\n");
+      ERROR("File is Empty, Terminating ...\n");
    }
 
    while (fscanf(fp, "%s", currWord)==1) {
@@ -489,12 +595,20 @@ intNode *allocateNode(int i)
    return n;
 }
 
+void wordStep(nalFile *p, int s)
+{
+   p->currWord += s;
+   if (p->currWord >= p->totWords) {
+      nalERROR(p,"Word Index Out of Bounds, Terminating...\n");
+   }
+}
+
 void program(nalFile *p)
 {
    if (!strsame(p->words[p->currWord], "{")) {
       nalERROR(p, "No starting \'{\'\n");
    }
-   p->currWord++;
+   wordStep(p,1);
    instrs(p);
 }
 
@@ -551,7 +665,7 @@ instr file(nalFile *p)
    #endif
 
    if (strsame(p->words[p->currWord], "FILE")) {
-      p->currWord++;
+      wordStep(p,1);
       if (!isstrcon(p->words[p->currWord])) {
          syntaxERROR(p, "FILE", "STRCON", p->currWord);
       }
@@ -563,12 +677,13 @@ instr file(nalFile *p)
       program(newFile);
       terminateNalFile(&newFile);
       #endif
-      p->currWord++;
+      wordStep(p,1);
       return EXECUTED;
    }
    return NOTEXECUTED;
 }
 
+/*Given a word that returns TRUE from isstrcon, output the string*/
 char *getString(char const* word)
 {
    char *str;
@@ -596,13 +711,13 @@ char unROT(char c)
 {
    if (islower(c)) {
       c = c - 'a';
-      c = (c-ROT13)%ALPHABET;
+      c = (c-ROTCHAR)%ALPHABET;
    } else if (isupper(c)) {
       c = c - 'A';
-      c = (c-ROT13)%ALPHABET;
+      c = (c-ROTCHAR)%ALPHABET;
    } else if (isnumber(c)) {
       c = c-'0';
-      c = (c-ROT18)%NUMBASE;
+      c = (c-ROTNUM)%NUMBASE;
    }
    return c;
 }
@@ -623,7 +738,7 @@ instr nalAbort(nalFile *p)
       p->currWord = p->totWords-1;
       return EXECUTED;
       #endif
-      p->currWord++;
+      wordStep(p,1);
       return EXECUTED;
    }
    return NOTEXECUTED;
@@ -651,7 +766,7 @@ instr in2str(nalFile *p)
    correct = TRUE;
 
    if (strsame(p->words[p->currWord], syntax[0])) {
-      p->currWord++;
+      wordStep(p,1);
       for (i = 1; i < IN2STRWORDS; i++) {
          if (strsame(syntax[i], "STRVAR")) {
             if (!isstrvar(p->words[p->currWord])) {
@@ -665,7 +780,7 @@ instr in2str(nalFile *p)
          if (!correct) {;
             syntaxERROR(p, syntax[i-1], syntax[i], p->currWord);
          }
-         p->currWord++;
+         wordStep(p,1);
       }
       return EXECUTED;
    }
@@ -681,7 +796,7 @@ instr innum(nalFile *p)
    correct = TRUE;
 
    if (strsame(p->words[p->currWord], syntax[0])) {
-      p->currWord++;
+      wordStep(p,1);
       for (i = 1; i < INNUMWORDS; i++) {
          if (strsame(syntax[i], "NUMVAR")) {
             if (!isnumvar(p->words[p->currWord])) {
@@ -695,7 +810,7 @@ instr innum(nalFile *p)
          if (!correct) {
             syntaxERROR(p, syntax[i-1], syntax[i], p->currWord);
          }
-         p->currWord++;
+         wordStep(p,1);
       }
       return EXECUTED;
    }
@@ -705,11 +820,11 @@ instr innum(nalFile *p)
 instr jump(nalFile *p)
 {
    if (strsame(p->words[p->currWord], "JUMP")) {
-      p->currWord++;
+      wordStep(p,1);
       if (!isnumcon(p->words[p->currWord])) {
          syntaxERROR(p, "JUMP", "NUMCON", p->currWord);
       }
-      p->currWord++;
+      wordStep(p,1);
       return EXECUTED;
    }
    return NOTEXECUTED;
@@ -718,12 +833,12 @@ instr jump(nalFile *p)
 instr nalPrint(nalFile *p)
 {
    if (strsame(p->words[p->currWord], "PRINT") || strsame(p->words[p->currWord], "PRINTN")) {
-      p->currWord++;
+      wordStep(p,1);
       if (!isvarcon(p->words[p->currWord])) {
          syntaxERROR(p, p->words[p->currWord-1], "VARCON",p->currWord);
       }
       /*if currWord-1 is PRINTN, printf("\n")*/
-      p->currWord++;
+      wordStep(p,1);
       return EXECUTED;
    }
    return NOTEXECUTED;
@@ -738,7 +853,7 @@ instr nalRnd(nalFile *p)
    correct = TRUE;
 
    if (strsame(p->words[p->currWord], syntax[0])) {
-      p->currWord++;
+      wordStep(p,1);
       for (i = 1; i < RANDWORDS; i++) {
          if (strsame(syntax[i], "NUMVAR")) {
             if (!isnumvar(p->words[p->currWord])) {
@@ -752,7 +867,7 @@ instr nalRnd(nalFile *p)
          if (!correct) {
             syntaxERROR(p, syntax[i-1], syntax[i], p->currWord);
          }
-         p->currWord++;
+         wordStep(p,1);
       }
       return EXECUTED;
    }
@@ -765,7 +880,7 @@ instr nalIfcond(nalFile *p)
       if (!strsame(p->words[p->currWord], "{")) {
          syntaxERROR(p, "CONDITION", "{", p->currWord);
       }
-      p->currWord++;
+      wordStep(p,1);
       instrs(p);
       return EXECUTED;
    }
@@ -781,7 +896,7 @@ instr nalIfequal(nalFile *p)
    correct = TRUE;
 
    if (strsame(p->words[p->currWord], syntax[0])) {
-      p->currWord++;
+      wordStep(p,1);
       for (i = 1; i < IN2STRWORDS; i++) {
          if (strsame(syntax[i], "VARCON")) {
             if (!isvarcon(p->words[p->currWord])) {
@@ -795,7 +910,7 @@ instr nalIfequal(nalFile *p)
          if (!correct) {
             syntaxERROR(p, syntax[i-1], syntax[i], p->currWord);
          }
-         p->currWord++;
+         wordStep(p,1);
       }
       return EXECUTED;
    }
@@ -811,7 +926,7 @@ instr nalIfgreater(nalFile *p)
    correct = TRUE;
 
    if (strsame(p->words[p->currWord], syntax[0])) {
-      p->currWord++;
+      wordStep(p,1);
       for (i = 1; i < IN2STRWORDS; i++) {
          if (strsame(syntax[i], "VARCON")) {
             if (!isvarcon(p->words[p->currWord])) {
@@ -825,7 +940,7 @@ instr nalIfgreater(nalFile *p)
          if (!correct) {
             syntaxERROR(p, syntax[i-1], syntax[i], p->currWord);
          }
-         p->currWord++;
+         wordStep(p,1);
       }
       return EXECUTED;
    }
@@ -841,7 +956,7 @@ instr nalInc(nalFile *p)
    correct = TRUE;
 
    if (strsame(p->words[p->currWord], syntax[0])) {
-      p->currWord++;
+      wordStep(p,1);
       for (i = 1; i < INCWORDS; i++) {
          if (strsame(syntax[i], "NUMVAR")) {
             if (!isnumvar(p->words[p->currWord])) {
@@ -855,7 +970,7 @@ instr nalInc(nalFile *p)
          if (!correct) {
             syntaxERROR(p, syntax[i-1], syntax[i], p->currWord);
          }
-         p->currWord++;
+         wordStep(p,1);
       }
       return EXECUTED;
    }
@@ -865,11 +980,11 @@ instr nalInc(nalFile *p)
 instr nalSet(nalFile *p)
 {
    if (isvar(p->words[p->currWord]) && strsame(p->words[p->currWord+1],"=")) {
-      p->currWord+=2;
+      wordStep(p,2);
    if (!isvarcon(p->words[p->currWord])) {
       syntaxERROR(p, "=", "VARCON", p->currWord);
       }
-      p->currWord++;
+      wordStep(p,1);
       return EXECUTED;
    }
    return NOTEXECUTED;

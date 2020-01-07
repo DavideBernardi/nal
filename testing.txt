@@ -9,5 +9,11 @@ Which wouldn't have been possible without sorting out all of the file reading
 infrastructure.
 All of that code was easy to test function by function.
 
-Then I started building the syntax one command at a time, for each new command
-I wrote a new .nal file which only tested that particular piece of syntax
+Then I started building the parser one command at a time, for each new command
+I wrote a new .nal file which only tested that particular piece of syntax.
+I also wrote a .nal file which was supposed to break at that particular syntax, and checked that when it terminated the program no leaks happened.
+
+For example by having a .nal file which only contained a {, I noticed that the program was not terminating correctly.
+And that was because, after completing an instruction I was simply increasing the current word index by 1.
+But what happens if the current word is the last one?? Then when trying to read the next word, the program would be reading outside of the array!
+To fix this I wrote the wordStep(int s) function, which increases the current word index by s, but also checks that the new index is withing the array, and returns an error if it is not.
