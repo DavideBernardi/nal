@@ -32,8 +32,6 @@ Note: This is only used when initially reading in each space-separated string,
 Only used once in instruct().
 NOTE: Risky, since if the word is a string the total length could be >1000*/
 #define ERRORLINELENGTH 1000
-#define WORDSINTEST1 4
-
 /*Initial size of the error message outputted when a syntax rule is broken.
 Note: Safe, as the function syntaxERROR() safely allocates space based on the
 size of the message.*/
@@ -47,6 +45,10 @@ i.e. <IN2STR> = "IN2STR", "(", "STRVAR", ",", "STRVAR", ")"
 #define RANDWORDS 4
 #define INCWORDS 4
 #define SETWORDS 3
+
+/*Used in testing*/
+#define WORDSINTEST1 4
+#define ERRORSTRINGLEN 1000
 
 /*Used in unROT()*/
 #define ROTCHAR 13
@@ -100,6 +102,7 @@ void test(void);
 void testTokenization(void);
 void testParsingFunctions(void);
 void testInterpFunctions(void);
+void testGetString(char const* word, char const* realStr);
 
 /*General*/
 void checkInput(int argc, char const *argv[]);
@@ -365,7 +368,21 @@ void testInterpFunctions(void)
 
 
    /*Test getString*/
+   testGetString("\"\"","");
+   testGetString("\"Hello World\"","Hello World");
+   testGetString("\"HELLO.TXT\"","HELLO.TXT");
+   testGetString("#URYYB.GKG#","HELLO.TXT");
 
+}
+
+/*word is the strcon, realStr is what the output from getString should look like*/
+void testGetString(char const* word, char const* realStr)
+{
+   char *str;
+   str = getString(word);
+   printf("%s\n", str);
+   assert(strsame(str,realStr));
+   free(str);
 }
 
 void checkInput(int argc, char const *argv[])
@@ -712,12 +729,15 @@ char unROT(char c)
    if (islower(c)) {
       c = c - 'a';
       c = (c-ROTCHAR)%ALPHABET;
+      c = c + 'a';
    } else if (isupper(c)) {
       c = c - 'A';
       c = (c-ROTCHAR)%ALPHABET;
+      c = c + 'A';
    } else if (isnumber(c)) {
-      c = c-'0';
+      c = c - '0';
       c = (c-ROTNUM)%NUMBASE;
+      c = c + '0';
    }
    return c;
 }
