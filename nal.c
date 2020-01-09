@@ -2,17 +2,7 @@
 ADD UNIT TESTING FOR:
 
 
-
-The Abort function now just simply sets the currWord to the last word, so the program then ends itself as expected. Check that this works by making a bunch of .nal files that call each other and abort at weird places
-
-
-Possible Improvement:
-   Instead of just having currword++, have a nextWord(nf) function which checks
-   whether we are currently on the last word
-   (if currWord == totWords-1
-      nalERROR("More words expected"))
-
-
+Possible Improvements:
 */
 
 #include <stdio.h>
@@ -60,26 +50,15 @@ typedef struct nalFile{
    char **words;
    int currWord;
    int totWords;
+   struct nalFile *prev;
 } nalFile;
 
-typedef struct fileNode{
-   nalFile *file;
-   struct fileNode *prev;
-}fileNode;
-
-/*Note: if type == NUM, strval == NULL - other way around if type == STR or ROTSTR*/
 typedef struct nalVar{
    vartype type;
    char *varname;
    char *strval;
    struct nalVar *next;
 }nalVar;
-
-typedef struct nalProg{
-   fileNode *curr;
-   nalVar *head;
-
-}nalProg;
 
 typedef struct intNode{
    int data;
@@ -104,6 +83,7 @@ void checkInput(int argc, char const *argv[]);
 FILE *getFile(char const file[]);
 nalFile *initNalFile(void);
 void terminateNalFile(nalFile **nf);
+void terminateAllNalFiles(nalFile *nf);
 void setupNalFile(nalFile *nf, char const file[]);
 void wordStep(nalFile *nf, int s);
 
@@ -458,6 +438,7 @@ nalFile *initNalFile(void)
    nf->words = NULL;
    nf->currWord = 0;
    nf->totWords = 0;
+   nf->prev = NULL;
 
    return nf;
 }
@@ -723,6 +704,8 @@ instr file(nalFile *nf)
       newFile = initNalFile();
       setupNalFile(newFile, fileName);
       free(fileName);
+      /*Keep track of previous file in case of ABORT call*/
+      newFile->prev = nf;
       program(newFile);
       terminateNalFile(&newFile);
       #endif
@@ -787,13 +770,13 @@ bool isnumber(char c)
    return FALSE;
 }
 
-/*To ABORT, just push the index to the last word*/
+/*This should successfully abort a program with multiple files opened*/
 instr nalAbort(nalFile *nf)
 {
    if (strsame(nf->words[nf->currWord], "ABORT")) {
       #ifdef INTERP
-      nf->currWord = nf->totWords-1;
-      return EXECUTED;
+      terminateAllNalFiles(nf);
+      exit(EXIT_SUCCESS);
       #endif
       wordStep(nf,1);
       return EXECUTED;
@@ -874,14 +857,26 @@ instr innum(nalFile *nf)
    return NOTEXECUTED;
 }
 
+/*Can Add index to ERROR message by printing to a string and passing that string*/
 instr jump(nalFile *nf)
 {
+   #ifdef INTERP
+   int n, err;
+   #endif
    if (strsame(nf->words[nf->currWord], "JUMP")) {
       wordStep(nf,1);
       if (!isnumcon(nf->words[nf->currWord])) {
          syntaxERROR(nf, "JUMP", "NUMCON", nf->currWord);
       }
+      #ifdef INTERP
+      err = sscanf(nf->words[nf->currWord], "%d", &n);
+      if (err!=1 || n<0 || n>nf->totWords-1) {
+         nalERROR(nf, "Number after JUMP is not the index of a word in the file, terminating . . .\n");
+      }
+      nf->currWord = n;
+      #else
       wordStep(nf,1);
+      #endif
       return EXECUTED;
    }
    return NOTEXECUTED;
@@ -1139,9 +1134,20 @@ bool isvarcon(char const *word)
    return FALSE;
 }
 
+void terminateAllNalFiles(nalFile *nf)
+{
+   nalFile *prevFile;
+
+   while (nf!=NULL) {
+      prevFile = nf->prev;
+      terminateNalFile(&nf);
+      nf = prevFile;
+   }
+}
+
 void nalERROR(nalFile *nf, char* const msg)
 {
-   terminateNalFile(&nf);
+   terminateAllNalFiles(nf);
    ERROR(msg);
 }
 
@@ -1158,7 +1164,7 @@ void syntaxERROR(nalFile *nf, char const *prevWord, char const *expWord,  int in
 
    sprintf(errorLine, "Expected %s after %s at index %d\n", expWord, prevWord, index);
 
-   terminateNalFile(&nf);
+   terminateAllNalFiles(nf);
    fprintf(stderr, "%s", errorLine);
    free(errorLine);
    exit(EXIT_FAILURE);
