@@ -372,13 +372,14 @@ void testInterpFunctions(void)
 
 void testunROT(void)
 {
-   char PlainUpper[ALPHABET];
-   char RotUpper[ALPHABET];
-   char PlainLower[ALPHABET];
-   char RotLower[ALPHABET];
-   char PlainNum[NUMBASE];
-   char RotNum[NUMBASE];
-   char PlainSyms[34];
+   /*For some reason I need to add +1 to these arrays or I get overflow errors - doesn't the [] syntax automatically add 1 for the end of string char?*/
+   char PlainUpper[ALPHABET+1];
+   char RotUpper[ALPHABET+1];
+   char PlainLower[ALPHABET+1];
+   char RotLower[ALPHABET+1];
+   char PlainNum[NUMBASE+1];
+   char RotNum[NUMBASE+1];
+   char PlainSyms[34+1];
    int i;
 
    strcpy(PlainUpper,"ABCDEFGHIJKLMNOPQRSTUVWXYZ");
