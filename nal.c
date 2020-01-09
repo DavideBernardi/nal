@@ -43,10 +43,11 @@ i.e. <IN2STR> = "IN2STR", "(", "STRVAR", ",", "STRVAR", ")"
 #define WORDSINTEST1 4
 #define ERRORSTRINGLEN 1000
 
-/*Used in unROT()*/
+/*Used in ROT()*/
 #define ROTCHAR 13
 #define ALPHABET 26
 #define ROTNUM 5
+#define SYMSAMOUNT 34
 #define NUMBASE 10
 
 #define strsame(A,B) (strcmp(A, B)==0)
@@ -95,7 +96,7 @@ void testTokenization(void);
 void testParsingFunctions(void);
 void testInterpFunctions(void);
 void testGetString(char const* word, char const* realStr);
-void testunROT(void);
+void testROT(void);
 
 /*General*/
 void checkInput(int argc, char const *argv[]);
@@ -149,7 +150,7 @@ bool validVar(char const *word, char c);
 
 /*Interpreting*/
 char *getString(char const* word);
-char unROT(char c);
+char ROT(char c);
 char ROTbase(char c, char base, int rotVal, int alphabet);
 bool isnumber(char c);
 
@@ -358,7 +359,7 @@ void testParsingFunctions(void)
 
 void testInterpFunctions(void)
 {
-   testunROT();
+   testROT();
 
    /*Test getString*/
    testGetString("\"\"","");
@@ -370,7 +371,7 @@ void testInterpFunctions(void)
 
 }
 
-void testunROT(void)
+void testROT(void)
 {
    /*For some reason I need to add +1 to these arrays or I get overflow errors - doesn't the [] syntax automatically add 1 for the end of string char?*/
    char PlainUpper[ALPHABET+1];
@@ -379,7 +380,7 @@ void testunROT(void)
    char RotLower[ALPHABET+1];
    char PlainNum[NUMBASE+1];
    char RotNum[NUMBASE+1];
-   char PlainSyms[34+1];
+   char PlainSyms[SYMSAMOUNT+1];
    int i;
 
    strcpy(PlainUpper,"ABCDEFGHIJKLMNOPQRSTUVWXYZ");
@@ -391,19 +392,16 @@ void testunROT(void)
    strcpy(RotNum,"5678901234");
 
    for (i = 0; i < ALPHABET; i++) {
-      assert(PlainUpper[i]==unROT(RotUpper[i]));
-      assert(PlainLower[i]==unROT(RotLower[i]));
+      assert(PlainUpper[i]==ROT(RotUpper[i]));
+      assert(PlainLower[i]==ROT(RotLower[i]));
    }
 
-   for (i = 0; i < 34; i++) {
-      assert(PlainSyms[i]==unROT(PlainSyms[i]));
+   for (i = 0; i < SYMSAMOUNT; i++) {
+      assert(PlainSyms[i]==ROT(PlainSyms[i]));
    }
 
-   /*This is hilarious, for some reason doing the strcpy's messes up with the strings
-   PlainNum[0] goes from '0'(48) to '\0'(0) After doing the strcpy for RotNum - WHATTTTTT??????*/
-   PlainNum[0]='0';
    for (i = 0; i < NUMBASE; i++) {
-      assert(PlainNum[i]==unROT(RotNum[i]));
+      assert(PlainNum[i]==ROT(RotNum[i]));
    }
 }
 
@@ -748,14 +746,14 @@ char *getString(char const* word)
       str[strSize] = '\0';
    } else {
       for (i = 0; i < strSize; i++) {
-         str[i] = unROT(word[i+1]);
+         str[i] = ROT(word[i+1]);
       }
       str[strSize] = '\0';
    }
    return str;
 }
 
-char unROT(char c)
+char ROT(char c)
 {
    if (islower(c)) {
       c = ROTbase(c, 'a', ROTCHAR, ALPHABET);

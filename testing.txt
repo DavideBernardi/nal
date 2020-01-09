@@ -17,3 +17,5 @@ For example by having a .nal file which only contained a {, I noticed that the p
 And that was because, after completing an instruction I was simply increasing the current word index by 1.
 But what happens if the current word is the last one?? Then when trying to read the next word, the program would be reading outside of the array!
 To fix this I wrote the wordStep(int s) function, which increases the current word index by s, but also checks that the new index is withing the array, and returns an error if it is not.
+
+When testing the ROT function, I first encountered some issues using the % operator, but it wasn't dealing properly with negative values so I used an if statement instead. Then when writing the arrays I used for testing lots of weird stuff kept happening until i realized I needed to add 1 to the size of each array for the end of string char.
