@@ -28,13 +28,7 @@ Possible Improvement:
 Note: This is only used when initially reading in each space-separated string,
       actual words are then stored in properly allocated memory.*/
 #define MAXWORDSIZE 1000
-/*Maximum size of the error message outputted when a word doesn't match any syntax rule.
-Only used once in instruct().
-NOTE: Risky, since if the word is a string the total length could be >1000*/
-#define ERRORLINELENGTH 1000
-/*Initial size of the error message outputted when a syntax rule is broken.
-Note: Safe, as the function syntaxERROR() safely allocates space based on the
-size of the message.*/
+#define ERRORLINELENGTH 50
 #define SYNTAXERRORLENGTH 30
 
 /*Number of words that are part of each of these rule's syntax
@@ -670,7 +664,7 @@ void instruct(nalFile *p)
       return;
    }
 
-   sprintf(errorLine, "Word \"%s\" (at index %d) doesn't match any syntax rule\n",p->words[p->currWord], p->currWord);
+   sprintf(errorLine, "Word at index %d doesn't match any syntax rule\n", p->currWord);
    nalERROR(p, errorLine);
 }
 
