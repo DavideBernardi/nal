@@ -1,7 +1,6 @@
 /*To do:
 ADD UNIT TESTING FOR:
-   getString()
-   unROT
+
 
 
 The Abort function now just simply sets the currWord to the last word, so the program then ends itself as expected. Check that this works by making a bunch of .nal files that call each other and abort at weird places
@@ -47,7 +46,7 @@ i.e. <IN2STR> = "IN2STR", "(", "STRVAR", ",", "STRVAR", ")"
 /*Used in unROT()*/
 #define ROTCHAR 13
 #define ALPHABET 26
-#define ROTNUM 18
+#define ROTNUM 5
 #define NUMBASE 10
 
 #define strsame(A,B) (strcmp(A, B)==0)
@@ -72,7 +71,6 @@ typedef struct nalVar{
    vartype type;
    char *varname;
    char *strval;
-   double *numval;
 }nalVar;
 
 typedef struct nalProg{
@@ -97,6 +95,7 @@ void testTokenization(void);
 void testParsingFunctions(void);
 void testInterpFunctions(void);
 void testGetString(char const* word, char const* realStr);
+void testunROT(void);
 
 /*General*/
 void checkInput(int argc, char const *argv[]);
@@ -151,6 +150,7 @@ bool validVar(char const *word, char c);
 /*Interpreting*/
 char *getString(char const* word);
 char unROT(char c);
+char ROTbase(char c, char base, int rotVal, int alphabet);
 bool isnumber(char c);
 
 /*These are malloc and calloc but also give errors if they fail to allocate*/
@@ -358,15 +358,52 @@ void testParsingFunctions(void)
 
 void testInterpFunctions(void)
 {
-   /*Test unROT*/
-
+   testunROT();
 
    /*Test getString*/
    testGetString("\"\"","");
    testGetString("\"Hello World\"","Hello World");
    testGetString("\"HELLO.TXT\"","HELLO.TXT");
    testGetString("#URYYB.GKG#","HELLO.TXT");
+   testGetString("\"There is the number 48 and 12 in here\"", "There is the number 48 and 12 in here");
+   testGetString("#Gurer vf gur ahzore 93 naq 67 va urer#", "There is the number 48 and 12 in here");
 
+}
+
+void testunROT(void)
+{
+   char PlainUpper[ALPHABET];
+   char RotUpper[ALPHABET];
+   char PlainLower[ALPHABET];
+   char RotLower[ALPHABET];
+   char PlainNum[NUMBASE];
+   char RotNum[NUMBASE];
+   char PlainSyms[34];
+   int i;
+
+   strcpy(PlainUpper,"ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+   strcpy(PlainLower,"abcdefghijklmnopqrstuvwxyz");
+   strcpy(PlainNum,"0123456789");
+   strcpy(PlainSyms,".,<>/?@':;~#|\\!\"£$%^&*()_-+={}]['");
+   strcpy(RotUpper,"NOPQRSTUVWXYZABCDEFGHIJKLM");
+   strcpy(RotLower,"nopqrstuvwxyzabcdefghijklm");
+   strcpy(RotNum,"5678901234");
+
+   for (i = 0; i < ALPHABET; i++) {
+      assert(PlainUpper[i]==unROT(RotUpper[i]));
+      assert(PlainLower[i]==unROT(RotLower[i]));
+   }
+
+   for (i = 0; i < 34; i++) {
+      assert(PlainSyms[i]==unROT(PlainSyms[i]));
+   }
+
+   /*This is hilarious, for some reason doing the strcpy's messes up with the strings
+   PlainNum[0] goes from '0'(48) to '\0'(0) After doing the strcpy for RotNum - WHATTTTTT??????*/
+   PlainNum[0]='0';
+   for (i = 0; i < NUMBASE; i++) {
+      assert(PlainNum[i]==unROT(RotNum[i]));
+   }
 }
 
 /*word is the strcon, realStr is what the output from getString should look like*/
@@ -374,7 +411,6 @@ void testGetString(char const* word, char const* realStr)
 {
    char *str;
    str = getString(word);
-   printf("%s\n", str);
    assert(strsame(str,realStr));
    free(str);
 }
@@ -721,24 +757,29 @@ char *getString(char const* word)
 char unROT(char c)
 {
    if (islower(c)) {
-      c = c - 'a';
-      c = (c-ROTCHAR)%ALPHABET;
-      c = c + 'a';
+      c = ROTbase(c, 'a', ROTCHAR, ALPHABET);
    } else if (isupper(c)) {
-      c = c - 'A';
-      c = (c-ROTCHAR)%ALPHABET;
-      c = c + 'A';
+      c = ROTbase(c, 'A', ROTCHAR, ALPHABET);
    } else if (isnumber(c)) {
-      c = c - '0';
-      c = (c-ROTNUM)%NUMBASE;
-      c = c + '0';
+      c = ROTbase(c, '0', ROTNUM, NUMBASE);
    }
+   return c;
+}
+
+char ROTbase(char c, char base, int rotVal, int alphabet)
+{
+   c = c - base;
+   c = (c-rotVal);
+   if (c<0) {
+      c+=alphabet;
+   }
+   c = c + base;
    return c;
 }
 
 bool isnumber(char c)
 {
-   if (c>=0 && c<=9) {
+   if (c>='0' && c<='9') {
       return TRUE;
    }
    return FALSE;
