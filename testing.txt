@@ -18,4 +18,20 @@ And that was because, after completing an instruction I was simply increasing th
 But what happens if the current word is the last one?? Then when trying to read the next word, the program would be reading outside of the array!
 To fix this I wrote the wordStep(int s) function, which increases the current word index by s, but also checks that the new index is withing the array, and returns an error if it is not.
 
-When testing the ROT function, I first encountered some issues using the % operator, but it wasn't dealing properly with negative values so I used an if statement instead. Then when writing the arrays I used for testing lots of weird stuff kept happening until i realized I needed to add 1 to the size of each array for the end of string char.
+Next I wrote the interpeter code for <FILE> and <ABORT>. I chose to work on these functions first because they do not deal with Variables or Conditionals, and also it looked like building these functions required a large change in the file structures in order to allow .nal files to properly interact with each other.
+
+After working on it for a while though I realized that wasn't true.
+<FILE> only required calling program() with the new .nal file within the file() function.
+It was quite easy to test this function using .nal files as I could just write .nal files calling one another and check if they parsed correctly (by not having the "Parsed OK" print inside a #ifndef -INTERP).
+<ABORT> was a little more complicated, I had already built and tested a terminateNalFile() function, but I had to expand this to be able to terminate all open files if more than one was opened with the file() function.
+To do so I simply added a pointer in the nalFile structure which points to the "previous file", this way if ABORT is called, it is simple to go down this linked list and close each file.
+Again, this function was easy to test using .nal files which opened each other using <FILE> and check that if ABORT was called no memory leaks happened.
+
+In order to read the string constant after a FILE command I had to write a function to deal with string constants, which involved playing with the ROT18 algorithm.
+
+When testing the ROT function, I first encountered some issues using the % operator, it wasn't dealing properly with negative values so I used an if statement instead. Then when writing the arrays I used for testing lots of weird stuff kept happening until i realized I needed to add 1 to the size of each array for the end of string char.
+
+Then I moved onto <JUMP>, since it also doesn't deal with variables. It was quite simple to write given that the words are stored as an array, and to test I tried it on the .nal files which is an infinite loop.
+
+Now it was time to start playing with variables though, so I took inspiration from our work with mvms and wrote another .c file called vList.c with the functions required to handle variables.
+I stored all variables as strings.
