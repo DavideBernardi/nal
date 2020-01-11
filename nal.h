@@ -12,6 +12,8 @@ Possible Improvements:
 #include <time.h>
 #include <ctype.h>
 
+#include "vList.h"
+
 
 /*Maximum size of a single %s pulled from the file,
 Note: This is only used when initially reading in each space-separated string,

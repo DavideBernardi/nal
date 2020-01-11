@@ -3,27 +3,30 @@ SFLAGS = -fsanitize=address -fsanitize=undefined -g3 -lm
 DFLAGS = -Wall -Wextra -pedantic -ansi -g3 -lm
 CC = clang
 BASE = nal
+VARFILE = vList
 BEXECS = parse interp
 SEXECS = parse_s interp_s
 DEXECS = parse_d interp_d
+EXTRACHECKS = $(VARFILE).c $(VARFILE).h
+EXTRAFILES = $(VARFILE).c
 EXECS = $(BEXECS) $(SEXECS) $(DEXECS)
 
 all : $(BEXECS)
 
-parse : $(BASE).c
-		$(CC) $(BASE).c $(CFLAGS) -o $@
-parse_s : $(BASE).c
-		$(CC) $(BASE).c $(SFLAGS) -o $@
-parse_d : $(BASE).c
-		$(CC) $(BASE).c $(DFLAGS) -o $@
+parse : $(BASE).c $(EXTRACHECKS)
+		$(CC) $(BASE).c $(EXTRAFILES) $(CFLAGS) -o $@
+parse_s : $(BASE).c $(EXTRACHECKS)
+		$(CC) $(BASE).c $(EXTRAFILES) $(SFLAGS) -o $@
+parse_d : $(BASE).c $(EXTRACHECKS)
+		$(CC) $(BASE).c $(EXTRAFILES) $(DFLAGS) -o $@
 
 
-interp : $(BASE).c
-		$(CC) $(BASE).c $(CFLAGS) -o $@ -DINTERP
-interp_s : $(BASE).c
-		$(CC) $(BASE).c $(SFLAGS) -o $@ -DINTERP
-interp_d : $(BASE).c
-		$(CC) $(BASE).c $(DFLAGS) -o $@ -DINTERP
+interp : $(BASE).c $(EXTRACHECKS)
+		$(CC) $(BASE).c $(EXTRAFILES) $(CFLAGS) -o $@ -DINTERP
+interp_s : $(BASE).c $(EXTRACHECKS)
+		$(CC) $(BASE).c $(EXTRAFILES) $(SFLAGS) -o $@ -DINTERP
+interp_d : $(BASE).c $(EXTRACHECKS)
+		$(CC) $(BASE).c $(EXTRAFILES) $(DFLAGS) -o $@ -DINTERP
 
 
 test : testparse testinterp

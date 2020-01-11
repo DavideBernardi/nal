@@ -33,5 +33,8 @@ When testing the ROT function, I first encountered some issues using the % opera
 
 Then I moved onto <JUMP>, since it also doesn't deal with variables. It was quite simple to write given that the words are stored as an array, and to test I tried it on the .nal files which is an infinite loop.
 
-Now it was time to start playing with variables though, so I took inspiration from our work with mvms and wrote another .c file called vList.c with the functions required to handle variables.
+Now it was time to start playing with variables though, so I took inspiration from our work with mvms and wrote another set of files called vList .c, .h and testvList.c for testing.
+These files will have all the functions required to handle variables.
 I stored all variables as strings.
+
+Testing these functions was easy because we already had a testfile setup for mvm, so I slightly adapted that, surprisingly I didn't encounter any errors while testing this (except a bunch of syntax errors like missing commas and things like that).
