@@ -3,6 +3,9 @@ ADD UNIT TESTING FOR:
 
 
 Possible Improvements:
+   The vList is trash, make it a sorted list or a hash table for god's sake
+
+   in insertInputStrings since we use scanf we risk overflow errors.
 */
 
 #include <stdio.h>
@@ -21,6 +24,8 @@ Note: This is only used when initially reading in each space-separated string,
 #define MAXWORDSIZE 1000
 #define ERRORLINELENGTH 75
 #define SYNTAXERRORLENGTH 50
+
+#define MAXINPUTSTRLEN 1000
 
 /*Number of words that are part of each of these rule's syntax
 i.e. <IN2STR> = "IN2STR", "(", "STRVAR", ",", "STRVAR", ")"
@@ -74,8 +79,8 @@ void testGetString(char const* word, char const* realStr);
 void testROT(void);
 
 /*ERROR message functions*/
-void nalERROR(nalFile *nf, char* const msg);
-void syntaxERROR(nalFile *nf, char const *prevWord, char const *expWord,  int index);
+void nalERROR(nalFile *nf, vList *vl, char* const msg);
+void syntaxERROR(nalFile *nf, vList *vl, char const *prevWord, char const *expWord,  int index);
 void ERROR(char* const msg);
 
 /*These are malloc and calloc but also give errors if they fail to allocate*/
@@ -102,25 +107,25 @@ nalFile *initNalFile(void);
 void setupNalFile(nalFile *nf, char const file[]);
 void terminateNalFile(nalFile **nf);
 void terminateAllNalFiles(nalFile *nf);
-void wordStep(nalFile *nf, int s);
+void wordStep(nalFile *nf, vList *vl, int s);
 
 /*Syntax*/
-void program(nalFile *nf);
-void instrs(nalFile *nf);
-void instruct(nalFile *nf);
-instr file(nalFile *nf);
-instr nalAbort(nalFile *nf);
-instr input(nalFile *nf);
-instr in2str(nalFile *nf);
-instr innum(nalFile *nf);
-instr jump(nalFile *nf);
-instr nalPrint(nalFile *nf);
-instr nalRnd(nalFile *nf);
-instr nalIfcond(nalFile *nf);
-instr nalIfequal(nalFile *nf);
-instr nalIfgreater(nalFile *nf);
-instr nalInc(nalFile *nf);
-instr nalSet(nalFile *nf);
+void program(nalFile *nf, vList *vl);
+void instrs(nalFile *nf, vList *vl);
+void instruct(nalFile *nf, vList *vl);
+instr file(nalFile *nf, vList *vl);
+instr nalAbort(nalFile *nf, vList *vl);
+instr input(nalFile *nf, vList *vl);
+instr in2str(nalFile *nf, vList *vl);
+instr innum(nalFile *nf, vList *vl);
+instr jump(nalFile *nf, vList *vl);
+instr nalPrint(nalFile *nf, vList *vl);
+instr nalRnd(nalFile *nf, vList *vl);
+instr nalIfcond(nalFile *nf, vList *vl);
+instr nalIfequal(nalFile *nf, vList *vl);
+instr nalIfgreater(nalFile *nf, vList *vl);
+instr nalInc(nalFile *nf, vList *vl);
+instr nalSet(nalFile *nf, vList *vl);
 
 bool isstrcon(char const *word);
 bool isnumvar(char const *word);
@@ -137,3 +142,5 @@ char *getString(char const* word);
 char ROT(char c);
 char ROTbase(char c, char base, int rotVal, int alphabet);
 bool isnumber(char c);
+
+void insertInputStrings(nalFile *nf, vList *vl, char **varnames);

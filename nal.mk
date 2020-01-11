@@ -80,10 +80,12 @@ testinterp : interp_s interp_d
 	valgrind ./interp_d t2.$(BASE)
 	valgrind ./interp_d t3.$(BASE)
 	valgrind ./interp_d t10.$(BASE)
+	valgrind ./interp_d t11.$(BASE)
 	./interp_s t1.$(BASE)
 	./interp_s t2.$(BASE)
 	./interp_s t3.$(BASE)
 	./interp_s t10.$(BASE)
+	./interp_s t11.$(BASE)
 
 
 

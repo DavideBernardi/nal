@@ -4,17 +4,26 @@
 int main(int argc, char const *argv[])
 {
    nalFile *nf;
+   vList *vl;
+   nalVar *curr;
 
    test();
 
    checkInput(argc, argv);
    nf = initNalFile();
    setupNalFile(nf, argv[1]);
-   program(nf);
+   vl = vList_init();
+   program(nf, vl);
    #ifndef INTERP
    printf("Parsed OK\n");
    #endif
    terminateNalFile(&nf);
+   curr = vl->head;
+   while (curr!=NULL) {
+      printf("Name: %s | Value: %s\n", curr->name, curr->val);
+      curr = curr->next;
+   }
+   vList_free(&vl);
    return 0;
 }
 
@@ -46,6 +55,7 @@ void testTokenization(void)
    intList *wordLengths;
    char testWord[MAXWORDSIZE];
    nalFile *testNal;
+   vList *testList;
    int i;
    char wordsInTest1[WORDSINTEST1][MAXWORDSIZE] = {"{", "PRINT", "\"Hello World! From test1\"", "}"};
 
@@ -110,11 +120,12 @@ void testTokenization(void)
    }
 
    /*Testing wordStep*/
+   testList = vList_init();
    for (i = 1; i < WORDSINTEST1; i++) {
-      wordStep(testNal, 1);
+      wordStep(testNal,testList, 1);
       assert(strsame(testNal->words[testNal->currWord],wordsInTest1[i]));
    }
-
+   vList_free(&testList);
    terminateNalFile(&testNal);
 }
 
@@ -495,69 +506,69 @@ void terminateAllNalFiles(nalFile *nf)
    }
 }
 
-void wordStep(nalFile *nf, int s)
+void wordStep(nalFile *nf, vList *vl, int s)
 {
    nf->currWord += s;
    if (nf->currWord >= nf->totWords) {
-      nalERROR(nf,"Word Index Out of Bounds, Terminating...\n");
+      nalERROR(nf, vl,"Word Index Out of Bounds, Terminating...\n");
    }
 }
 
-void program(nalFile *nf)
+void program(nalFile *nf, vList *vl)
 {
    if (!strsame(nf->words[nf->currWord], "{")) {
-      nalERROR(nf, "No starting \'{\'\n");
+      nalERROR(nf, vl,"No starting \'{\'\n");
    }
-   wordStep(nf,1);
-   instrs(nf);
+   wordStep(nf,vl,1);
+   instrs(nf, vl);
 }
 
-void instrs(nalFile *nf)
+void instrs(nalFile *nf, vList *vl)
 {
    if (strsame(nf->words[nf->currWord], "}")) {
       return;
    }
-   instruct(nf);
-   instrs(nf);
+   instruct(nf,vl);
+   instrs(nf,vl);
 }
 
-void instruct(nalFile *nf)
+void instruct(nalFile *nf, vList *vl)
 {
    char errorLine[ERRORLINELENGTH];
 
-   if (nalAbort(nf)==EXECUTED) {
+   if (nalAbort(nf,vl)==EXECUTED) {
       return;
    }
-   if (file(nf)==EXECUTED) {
+   if (file(nf,vl)==EXECUTED) {
       return;
    }
-   if (input(nf)==EXECUTED) {
+   if (input(nf,vl)==EXECUTED) {
       return;
    }
-   if (jump(nf)==EXECUTED) {
+   if (jump(nf,vl)==EXECUTED) {
       return;
    }
-   if (nalPrint(nf)==EXECUTED) {
+   if (nalPrint(nf,vl)==EXECUTED) {
       return;
    }
-   if (nalRnd(nf)==EXECUTED) {
+   if (nalRnd(nf,vl)==EXECUTED) {
       return;
    }
-   if (nalIfcond(nf)==EXECUTED) {
+   if (nalIfcond(nf,vl)==EXECUTED) {
       return;
    }
-   if (nalInc(nf)==EXECUTED) {
+   if (nalInc(nf,vl)==EXECUTED) {
       return;
    }
-   if (nalSet(nf)==EXECUTED) {
+   if (nalSet(nf,vl)==EXECUTED) {
       return;
    }
 
    sprintf(errorLine, "Word at index %d doesn't match any syntax rule\n", nf->currWord);
-   nalERROR(nf, errorLine);
+   nalERROR(nf,vl, errorLine);
 }
 
-instr file(nalFile *nf)
+instr file(nalFile *nf, vList *vl)
 {
    #ifdef INTERP
    nalFile *newFile;
@@ -565,9 +576,9 @@ instr file(nalFile *nf)
    #endif
 
    if (strsame(nf->words[nf->currWord], "FILE")) {
-      wordStep(nf,1);
+      wordStep(nf,vl,1);
       if (!isstrcon(nf->words[nf->currWord])) {
-         syntaxERROR(nf, "FILE", "STRCON", nf->currWord);
+         syntaxERROR(nf,vl, "FILE", "STRCON", nf->currWord);
       }
       #ifdef INTERP
       fileName = getString(nf->words[nf->currWord]);
@@ -576,10 +587,10 @@ instr file(nalFile *nf)
       free(fileName);
       /*Keep track of previous file in case of ABORT call*/
       newFile->prev = nf;
-      program(newFile);
+      program(newFile,vl);
       terminateNalFile(&newFile);
       #endif
-      wordStep(nf,1);
+      wordStep(nf,vl,1);
       return EXECUTED;
    }
    return NOTEXECUTED;
@@ -641,46 +652,60 @@ bool isnumber(char c)
 }
 
 /*This should successfully abort a program with multiple files opened*/
-instr nalAbort(nalFile *nf)
+instr nalAbort(nalFile *nf, vList *vl)
 {
    if (strsame(nf->words[nf->currWord], "ABORT")) {
       #ifdef INTERP
+      vList_free(&vl);
       terminateAllNalFiles(nf);
       exit(EXIT_SUCCESS);
       #endif
-      wordStep(nf,1);
+      wordStep(nf,vl,1);
       return EXECUTED;
    }
    return NOTEXECUTED;
 }
 
-instr input(nalFile *nf)
+instr input(nalFile *nf, vList *vl)
 {
 
-   if (in2str(nf) == EXECUTED) {
+   if (in2str(nf,vl) == EXECUTED) {
       return EXECUTED;
    }
-   if (innum(nf) == EXECUTED) {
+   if (innum(nf,vl) == EXECUTED) {
       return EXECUTED;
    }
    return NOTEXECUTED;
 
 }
 
-instr in2str(nalFile *nf)
+instr in2str(nalFile *nf, vList *vl)
 {
    int i;
    bool correct;
    char syntax[IN2STRWORDS][MAXWORDSIZE] = {"IN2STR", "(", "STRVAR", ",", "STRVAR", ")"};
+   #ifdef INTERP
+   int vFound;
+   char **varnames;
+
+   varnames = (char**)allocate(2*sizeof(char *),"Variable names array");
+   vFound = 0;
+   #endif
 
    correct = TRUE;
 
    if (strsame(nf->words[nf->currWord], syntax[0])) {
-      wordStep(nf,1);
+      wordStep(nf,vl,1);
       for (i = 1; i < IN2STRWORDS; i++) {
          if (strsame(syntax[i], "STRVAR")) {
             if (!isstrvar(nf->words[nf->currWord])) {
                correct = FALSE;
+            }else {
+               #ifdef INTERP
+               varnames[vFound] = (char *)allocate(sizeof(char)*(strlen(nf->words[nf->currWord])+1),"Variable name");
+               strcpy(varnames[vFound],nf->words[nf->currWord]);
+               vFound++;
+               #endif
             }
          } else {
                if (!strsame(nf->words[nf->currWord], syntax[i])) {
@@ -688,16 +713,34 @@ instr in2str(nalFile *nf)
             }
          }
          if (!correct) {;
-            syntaxERROR(nf, syntax[i-1], syntax[i], nf->currWord);
+            syntaxERROR(nf,vl, syntax[i-1], syntax[i], nf->currWord);
          }
-         wordStep(nf,1);
+         wordStep(nf,vl,1);
       }
+      #ifdef INTERP
+      insertInputStrings(nf,vl,varnames);
+      #endif
       return EXECUTED;
    }
    return NOTEXECUTED;
 }
 
-instr innum(nalFile *nf)
+void insertInputStrings(nalFile *nf, vList *vl, char **varnames)
+{
+   char str1[MAXINPUTSTRLEN], str2[MAXINPUTSTRLEN];
+
+   if (scanf("%s %s", str1, str2)!=2) {
+      nalERROR(nf, vl, "Error while receiving string input, terminating . . .\n");
+   }
+
+   vList_insert(vl, varnames[0],str1);
+   vList_insert(vl, varnames[1],str2);
+   free(varnames[0]);
+   free(varnames[1]);
+   free(varnames);
+}
+
+instr innum(nalFile *nf, vList *vl)
 {
    int i;
    bool correct;
@@ -706,7 +749,7 @@ instr innum(nalFile *nf)
    correct = TRUE;
 
    if (strsame(nf->words[nf->currWord], syntax[0])) {
-      wordStep(nf,1);
+      wordStep(nf,vl,1);
       for (i = 1; i < INNUMWORDS; i++) {
          if (strsame(syntax[i], "NUMVAR")) {
             if (!isnumvar(nf->words[nf->currWord])) {
@@ -718,9 +761,9 @@ instr innum(nalFile *nf)
             }
          }
          if (!correct) {
-            syntaxERROR(nf, syntax[i-1], syntax[i], nf->currWord);
+            syntaxERROR(nf,vl, syntax[i-1], syntax[i], nf->currWord);
          }
-         wordStep(nf,1);
+         wordStep(nf,vl,1);
       }
       return EXECUTED;
    }
@@ -728,45 +771,45 @@ instr innum(nalFile *nf)
 }
 
 /*Can Add index to ERROR message by printing to a string and passing that string*/
-instr jump(nalFile *nf)
+instr jump(nalFile *nf, vList *vl)
 {
    #ifdef INTERP
    int n, err;
    #endif
    if (strsame(nf->words[nf->currWord], "JUMP")) {
-      wordStep(nf,1);
+      wordStep(nf,vl,1);
       if (!isnumcon(nf->words[nf->currWord])) {
-         syntaxERROR(nf, "JUMP", "NUMCON", nf->currWord);
+         syntaxERROR(nf,vl, "JUMP", "NUMCON", nf->currWord);
       }
       #ifdef INTERP
       err = sscanf(nf->words[nf->currWord], "%d", &n);
       if (err!=1 || n<0 || n>nf->totWords-1) {
-         nalERROR(nf, "Number after JUMP is not the index of a word in the file, terminating . . .\n");
+         nalERROR(nf,vl, "Number after JUMP is not the index of a word in the file, terminating . . .\n");
       }
       nf->currWord = n;
       #else
-      wordStep(nf,1);
+      wordStep(nf,vl,1);
       #endif
       return EXECUTED;
    }
    return NOTEXECUTED;
 }
 
-instr nalPrint(nalFile *nf)
+instr nalPrint(nalFile *nf, vList *vl)
 {
    if (strsame(nf->words[nf->currWord], "PRINT") || strsame(nf->words[nf->currWord], "PRINTN")) {
-      wordStep(nf,1);
+      wordStep(nf,vl,1);
       if (!isvarcon(nf->words[nf->currWord])) {
-         syntaxERROR(nf, nf->words[nf->currWord-1], "VARCON",nf->currWord);
+         syntaxERROR(nf,vl, nf->words[nf->currWord-1], "VARCON",nf->currWord);
       }
       /*if currWord-1 is PRINTN, printf("\n")*/
-      wordStep(nf,1);
+      wordStep(nf,vl,1);
       return EXECUTED;
    }
    return NOTEXECUTED;
 }
 
-instr nalRnd(nalFile *nf)
+instr nalRnd(nalFile *nf, vList *vl)
 {
    int i;
    bool correct;
@@ -775,7 +818,7 @@ instr nalRnd(nalFile *nf)
    correct = TRUE;
 
    if (strsame(nf->words[nf->currWord], syntax[0])) {
-      wordStep(nf,1);
+      wordStep(nf,vl,1);
       for (i = 1; i < RANDWORDS; i++) {
          if (strsame(syntax[i], "NUMVAR")) {
             if (!isnumvar(nf->words[nf->currWord])) {
@@ -787,29 +830,29 @@ instr nalRnd(nalFile *nf)
             }
          }
          if (!correct) {
-            syntaxERROR(nf, syntax[i-1], syntax[i], nf->currWord);
+            syntaxERROR(nf,vl, syntax[i-1], syntax[i], nf->currWord);
          }
-         wordStep(nf,1);
+         wordStep(nf,vl,1);
       }
       return EXECUTED;
    }
    return NOTEXECUTED;
 }
 
-instr nalIfcond(nalFile *nf)
+instr nalIfcond(nalFile *nf, vList *vl)
 {
-   if (nalIfequal(nf) == EXECUTED || nalIfgreater(nf) == EXECUTED) {
+   if (nalIfequal(nf,vl) == EXECUTED || nalIfgreater(nf,vl) == EXECUTED) {
       if (!strsame(nf->words[nf->currWord], "{")) {
-         syntaxERROR(nf, "CONDITION", "{", nf->currWord);
+         syntaxERROR(nf,vl, "CONDITION", "{", nf->currWord);
       }
-      wordStep(nf,1);
-      instrs(nf);
+      wordStep(nf,vl,1);
+      instrs(nf,vl);
       return EXECUTED;
    }
    return NOTEXECUTED;
 }
 
-instr nalIfequal(nalFile *nf)
+instr nalIfequal(nalFile *nf, vList *vl)
 {
    int i;
    bool correct;
@@ -818,7 +861,7 @@ instr nalIfequal(nalFile *nf)
    correct = TRUE;
 
    if (strsame(nf->words[nf->currWord], syntax[0])) {
-      wordStep(nf,1);
+      wordStep(nf,vl,1);
       for (i = 1; i < IN2STRWORDS; i++) {
          if (strsame(syntax[i], "VARCON")) {
             if (!isvarcon(nf->words[nf->currWord])) {
@@ -830,16 +873,16 @@ instr nalIfequal(nalFile *nf)
             }
          }
          if (!correct) {
-            syntaxERROR(nf, syntax[i-1], syntax[i], nf->currWord);
+            syntaxERROR(nf,vl, syntax[i-1], syntax[i], nf->currWord);
          }
-         wordStep(nf,1);
+         wordStep(nf,vl,1);
       }
       return EXECUTED;
    }
    return NOTEXECUTED;
 }
 
-instr nalIfgreater(nalFile *nf)
+instr nalIfgreater(nalFile *nf, vList *vl)
 {
    int i;
    bool correct;
@@ -848,7 +891,7 @@ instr nalIfgreater(nalFile *nf)
    correct = TRUE;
 
    if (strsame(nf->words[nf->currWord], syntax[0])) {
-      wordStep(nf,1);
+      wordStep(nf,vl,1);
       for (i = 1; i < IN2STRWORDS; i++) {
          if (strsame(syntax[i], "VARCON")) {
             if (!isvarcon(nf->words[nf->currWord])) {
@@ -860,16 +903,16 @@ instr nalIfgreater(nalFile *nf)
             }
          }
          if (!correct) {
-            syntaxERROR(nf, syntax[i-1], syntax[i], nf->currWord);
+            syntaxERROR(nf,vl, syntax[i-1], syntax[i], nf->currWord);
          }
-         wordStep(nf,1);
+         wordStep(nf,vl,1);
       }
       return EXECUTED;
    }
    return NOTEXECUTED;
 }
 
-instr nalInc(nalFile *nf)
+instr nalInc(nalFile *nf, vList *vl)
 {
    int i;
    bool correct;
@@ -878,7 +921,7 @@ instr nalInc(nalFile *nf)
    correct = TRUE;
 
    if (strsame(nf->words[nf->currWord], syntax[0])) {
-      wordStep(nf,1);
+      wordStep(nf,vl,1);
       for (i = 1; i < INCWORDS; i++) {
          if (strsame(syntax[i], "NUMVAR")) {
             if (!isnumvar(nf->words[nf->currWord])) {
@@ -890,23 +933,23 @@ instr nalInc(nalFile *nf)
             }
          }
          if (!correct) {
-            syntaxERROR(nf, syntax[i-1], syntax[i], nf->currWord);
+            syntaxERROR(nf,vl, syntax[i-1], syntax[i], nf->currWord);
          }
-         wordStep(nf,1);
+         wordStep(nf,vl,1);
       }
       return EXECUTED;
    }
    return NOTEXECUTED;
 }
 
-instr nalSet(nalFile *nf)
+instr nalSet(nalFile *nf, vList *vl)
 {
    if (isvar(nf->words[nf->currWord]) && strsame(nf->words[nf->currWord+1],"=")) {
-      wordStep(nf,2);
+      wordStep(nf,vl,2);
    if (!isvarcon(nf->words[nf->currWord])) {
-      syntaxERROR(nf, "=", "VARCON", nf->currWord);
+      syntaxERROR(nf,vl, "=", "VARCON", nf->currWord);
       }
-      wordStep(nf,1);
+      wordStep(nf,vl,1);
       return EXECUTED;
    }
    return NOTEXECUTED;
@@ -1004,13 +1047,14 @@ bool isvarcon(char const *word)
    return FALSE;
 }
 
-void nalERROR(nalFile *nf, char* const msg)
+void nalERROR(nalFile *nf, vList *vl, char* const msg)
 {
+   vList_free(&vl);
    terminateAllNalFiles(nf);
    ERROR(msg);
 }
 
-void syntaxERROR(nalFile *nf, char const *prevWord, char const *expWord,  int index)
+void syntaxERROR(nalFile *nf, vList *vl,char const *prevWord, char const *expWord,  int index)
 {
    char *errorLine;
    int errorLineLength;
@@ -1023,6 +1067,7 @@ void syntaxERROR(nalFile *nf, char const *prevWord, char const *expWord,  int in
 
    sprintf(errorLine, "Expected %s after %s at index %d\n", expWord, prevWord, index);
 
+   vList_free(&vl);
    terminateAllNalFiles(nf);
    fprintf(stderr, "%s", errorLine);
    free(errorLine);
