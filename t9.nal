@@ -1,19 +1,10 @@
 {
-   FILE "filename.nal"
-   IN2STR ( $C , $ZER )
-   INNUM ( %NV )
-   RND ( %N )
-   PRINT "Hello World! From test1"
-   PRINTN "Hello World! From test1"
-   IFEQUAL ( $WHERECHEK , "SE" ) {
-      PRINT $SECHEKSE
+
+   IFEQUAL ( 17.5 , 17.8 ) {
+      PRINTN "It doesn't work"
+      ABORT
    }
-   IFGREATER ( $WHERECHEK , "SW" ) {
-      PRINT $BIKESOLO
-   }
-   $A = "Hello"
-   %B = 17.6
-   INC ( %ABC )
-   JUMP 1
-   ABORT
+
+   PRINTN "It works"
+
 }

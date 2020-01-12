@@ -83,6 +83,7 @@ testinterp : interp_s interp_d
 	valgrind ./interp_d t11.$(BASE)
 	valgrind ./interp_d t4.$(BASE)
 	valgrind ./interp_d t6.$(BASE)
+	valgrind ./interp_d t7.$(BASE)
 	./interp_s t1.$(BASE)
 	./interp_s t2.$(BASE)
 	./interp_s t3.$(BASE)
@@ -90,6 +91,7 @@ testinterp : interp_s interp_d
 	./interp_s t11.$(BASE)
 	./interp_s t4.$(BASE)
 	./interp_s t6.$(BASE)
+	./interp_s t7.$(BASE)
 
 
 clean :

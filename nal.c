@@ -877,15 +877,23 @@ instr nalRnd(nalFile *nf, vList *vl)
    int i;
    bool correct;
    char syntax[RANDWORDS][MAXWORDSIZE] = {"RND", "(", "NUMVAR", ")"};
+   #ifdef INTERP
+   char *name;
+   #endif
 
-   correct = TRUE;
+
 
    if (strsame(nf->words[nf->currWord], syntax[0])) {
+      correct = TRUE;
       wordStep(nf,vl,1);
       for (i = 1; i < RANDWORDS; i++) {
          if (strsame(syntax[i], "NUMVAR")) {
             if (!isnumvar(nf->words[nf->currWord])) {
                correct = FALSE;
+            } else {
+               #ifdef INTERP
+               name = allocString(nf->words[nf->currWord]);
+               #endif
             }
          } else {
             if (!strsame(nf->words[nf->currWord], syntax[i])) {
@@ -893,42 +901,110 @@ instr nalRnd(nalFile *nf, vList *vl)
             }
          }
          if (!correct) {
+            #ifdef INTERP
+            free(name);
+            #endif
             syntaxERROR(nf,vl, syntax[i-1], syntax[i], nf->currWord);
          }
          wordStep(nf,vl,1);
       }
+      #ifdef INTERP
+      setRandom(vl,name);
+      free(name);
+      #endif
       return EXECUTED;
    }
    return NOTEXECUTED;
 }
 
+void setRandom(vList *vl, char *name)
+{
+   char* val;
+   int rnum;
+   time_t t;
+
+   srand((unsigned) time(&t));
+
+   rnum = (rand()%RANMAX-1)+RANMIN;
+   val = (char *)allocate(sizeof(char)*MAXRANCHARS, "Random number");
+
+   sprintf(val, "%d", rnum);
+
+   vList_insert(vl, name, val);
+   free(val);
+}
+
 instr nalIfcond(nalFile *nf, vList *vl)
 {
-   if (nalIfequal(nf,vl) == EXECUTED || nalIfgreater(nf,vl) == EXECUTED) {
+   cond condition;
+
+   condition = nalIfequal(nf,vl);
+   if (condition==NOTEXEC) {
+      condition = nalIfgreater(nf,vl);
+   }
+
+   if (condition != NOTEXEC) {
       if (!strsame(nf->words[nf->currWord], "{")) {
          syntaxERROR(nf,vl, "CONDITION", "{", nf->currWord);
       }
       wordStep(nf,vl,1);
+      if (condition==EXECFAIL) {
+         skipToMatchingBracket(nf,vl);
+         return EXECUTED;
+      }
       instrs(nf,vl);
       return EXECUTED;
    }
    return NOTEXECUTED;
 }
 
-instr nalIfequal(nalFile *nf, vList *vl)
+void skipToMatchingBracket(nalFile *nf, vList *vl)
+{
+   int brackets;
+
+   brackets = 1;
+   while (brackets>0) {
+      if (strsame(nf->words[nf->currWord],"{" )) {
+         brackets++;
+      }
+      if (strsame(nf->words[nf->currWord],"}" )) {
+         brackets--;
+      }
+      wordStep(nf,vl,1);
+   }
+
+}
+
+/*This is awful: if a string variable and a number variable have the same value, ifequal will return true.
+It should either return false or returns an error!!
+Need to check whether the variable we are checking is strvar, strcon, numvar, numcon.
+Based on that pull out the correct value and check it against the pulled out value of the other varcon IFF they are both either str or num*/
+cond nalIfequal(nalFile *nf, vList *vl)
 {
    int i;
    bool correct;
    char syntax[IN2STRWORDS][MAXWORDSIZE] = {"IFEQUAL", "(", "VARCON", ",", "VARCON", ")"};
-
-   correct = TRUE;
+   #ifdef INTERP
+   char **values;
+   int vFound;
+   #endif
 
    if (strsame(nf->words[nf->currWord], syntax[0])) {
+      correct = TRUE;
+      #ifdef INTERP
+      values = (char**)allocate(2*sizeof(char *),"Values array");
+      vFound = 0;
+      #endif
       wordStep(nf,vl,1);
       for (i = 1; i < IN2STRWORDS; i++) {
          if (strsame(syntax[i], "VARCON")) {
             if (!isvarcon(nf->words[nf->currWord])) {
                correct = FALSE;
+            }else{
+               #ifdef INTERP
+               values[vFound] = allocString(nf->words[nf->currWord]);
+               vFound++;
+               #endif
             }
          } else {
                if (!strsame(nf->words[nf->currWord], syntax[i])) {
@@ -936,16 +1012,32 @@ instr nalIfequal(nalFile *nf, vList *vl)
             }
          }
          if (!correct) {
+            #ifdef INTERP
+            free(values[0]);
+            free(values[1]);
+            free(values);
+            #endif
             syntaxERROR(nf,vl, syntax[i-1], syntax[i], nf->currWord);
          }
          wordStep(nf,vl,1);
       }
-      return EXECUTED;
+      #ifdef INTERP
+      if (!strsame(values[0],values[1])) {
+         free(values[0]);
+         free(values[1]);
+         free(values);
+         return EXECFAIL;
+      }
+      free(values[0]);
+      free(values[1]);
+      free(values);
+      #endif
+      return EXECPASS;
    }
-   return NOTEXECUTED;
+   return NOTEXEC;
 }
 
-instr nalIfgreater(nalFile *nf, vList *vl)
+cond nalIfgreater(nalFile *nf, vList *vl)
 {
    int i;
    bool correct;
@@ -970,9 +1062,9 @@ instr nalIfgreater(nalFile *nf, vList *vl)
          }
          wordStep(nf,vl,1);
       }
-      return EXECUTED;
+      return EXECPASS;
    }
-   return NOTEXECUTED;
+   return NOTEXEC;
 }
 
 instr nalInc(nalFile *nf, vList *vl)
@@ -980,15 +1072,21 @@ instr nalInc(nalFile *nf, vList *vl)
    int i;
    bool correct;
    char syntax[INCWORDS][MAXWORDSIZE] = {"INC", "(", "NUMVAR", ")"};
-
-   correct = TRUE;
+   #ifdef INTERP
+   char *name = NULL;
+   #endif
 
    if (strsame(nf->words[nf->currWord], syntax[0])) {
+      correct = TRUE;
       wordStep(nf,vl,1);
       for (i = 1; i < INCWORDS; i++) {
          if (strsame(syntax[i], "NUMVAR")) {
             if (!isnumvar(nf->words[nf->currWord])) {
                correct = FALSE;
+            } else {
+               #ifdef INTERP
+               name = allocString(nf->words[nf->currWord]);
+               #endif
             }
          } else {
             if (!strsame(nf->words[nf->currWord], syntax[i])) {
@@ -996,26 +1094,84 @@ instr nalInc(nalFile *nf, vList *vl)
             }
          }
          if (!correct) {
+            #ifdef INTERP
+            free(name);
+            #endif
             syntaxERROR(nf,vl, syntax[i-1], syntax[i], nf->currWord);
          }
          wordStep(nf,vl,1);
       }
+      #ifdef INTERP
+      incVar(nf, vl,name);
+      free(name);
+      #endif
       return EXECUTED;
    }
    return NOTEXECUTED;
 }
 
+void incVar(nalFile *nf, vList *vl, char *name)
+{
+   char *val, *newVal;
+   double num;
+
+   val = vList_search(vl, name);
+   if (sscanf(val,"%lf",&num)!=1) {
+      nalERROR(nf,vl,"Critical Error while reading stored number variable, terminating . . .\n");
+   }
+   num++;
+   newVal = (char *)allocate(sizeof(char)*MAXDOUBLESIZE,"Value of increased Variable");
+
+   sprintf(newVal,"%lf",num);
+   vList_insert(vl, name, newVal);
+   free(newVal);
+}
+
+/*Note: the parsing syntax seems to indicate that assigning a string to a number variable should be allowed, so I only check for that in the interpreter*/
 instr nalSet(nalFile *nf, vList *vl)
 {
    if (isvar(nf->words[nf->currWord]) && strsame(nf->words[nf->currWord+1],"=")) {
-      wordStep(nf,vl,2);
+
+   wordStep(nf,vl,2);
    if (!isvarcon(nf->words[nf->currWord])) {
       syntaxERROR(nf,vl, "=", "VARCON", nf->currWord);
       }
+      #ifdef INTERP
+      setVariable(nf,vl);
+      #endif
       wordStep(nf,vl,1);
       return EXECUTED;
    }
    return NOTEXECUTED;
+}
+
+void setVariable(nalFile *nf, vList *vl)
+{
+   char *name, *val;
+
+   name = nf->words[nf->currWord-2];
+   val = nf->words[nf->currWord];
+
+   if (!validSet(name, val)) {
+      nalERROR(nf,vl,"Setting a Variable to wrong Value Type, terminating . . .\n");
+   }
+   if (isstrcon(val)) {
+      val = getString(val);
+      printf("Val : %s\n", val);
+      printf("Word: %s\n", nf->words[nf->currWord]);
+   }
+   vList_insert(vl,name,val);
+}
+
+bool validSet(char *name, char *val)
+{
+   if (isnumvar(name) && isstrcon(val) ) {
+      return FALSE;
+   }
+   if (isstrvar(name) && isnumcon(val)) {
+      return FALSE;
+   }
+   return TRUE;
 }
 
 /*This function exists only for clarity, could just use validVar(nf, '#') everywhere instead*/

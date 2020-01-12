@@ -1,5 +1,7 @@
 /*To do:
 Left To Do:
+
+   IMPORTANT: FINISH IFEQUAL CHECKING BECAUSE AT THE MOMENT IT IS VERY BAD I.E. IT JUST CHECKS IF THE STRINGS ARE THE SAME
 ADD UNIT TESTING FOR:
    insertInputNum()
    insertInputStrings()
@@ -9,6 +11,8 @@ Possible Improvements:
    The vList is trash, make it a sorted list or a hash table for god's sake
 
    in insertInputStrings since we use scanf we risk overflow errors.
+
+   in ifequal and ifgreater we need a larger infrastructure to check whether the varcons to compare are of the same type and don't just look the same
 */
 
 #include <stdio.h>
@@ -27,11 +31,6 @@ Note: This is only used when initially reading in each space-separated string,
 #define MAXWORDSIZE 1000
 #define ERRORLINELENGTH 75
 #define SYNTAXERRORLENGTH 50
-
-/*Maximum amount of chars of user input (in in2str or innum)
-Note: max is 1000, last char is end of string*/
-#define MAXINPUTSTRLEN 1001
-#define MAXINPUTNUMLEN 1001
 
 /*Number of words that are part of each of these rule's syntax
 i.e. <IN2STR> = "IN2STR", "(", "STRVAR", ",", "STRVAR", ")"
@@ -53,10 +52,24 @@ i.e. <IN2STR> = "IN2STR", "(", "STRVAR", ",", "STRVAR", ")"
 #define SYMSAMOUNT 34
 #define NUMBASE 10
 
+/*Maximum amount of chars of user input (in in2str or innum)
+Note: max is 1000, last char is end of string*/
+#define MAXINPUTSTRLEN 1001
+#define MAXINPUTNUMLEN 1001
+
+/*Used in setRandom()*/
+#define RANMAX 99
+#define RANMIN 0
+/*Maximum amount of chars the random number can be + 1 for \0*/
+#define MAXRANCHARS 3
+
+#define MAXDOUBLESIZE 1100
+
 #define strsame(A,B) (strcmp(A, B)==0)
 
 typedef enum {FALSE, TRUE} bool;
 typedef enum {NOTEXECUTED, EXECUTED} instr;
+typedef enum {NOTEXEC, EXECPASS, EXECFAIL} cond;
 typedef enum {NUM, STR, ROTSTR} vartype;
 
 typedef struct nalFile{
@@ -129,8 +142,8 @@ instr jump(nalFile *nf, vList *vl);
 instr nalPrint(nalFile *nf, vList *vl);
 instr nalRnd(nalFile *nf, vList *vl);
 instr nalIfcond(nalFile *nf, vList *vl);
-instr nalIfequal(nalFile *nf, vList *vl);
-instr nalIfgreater(nalFile *nf, vList *vl);
+cond nalIfequal(nalFile *nf, vList *vl);
+cond nalIfgreater(nalFile *nf, vList *vl);
 instr nalInc(nalFile *nf, vList *vl);
 instr nalSet(nalFile *nf, vList *vl);
 
@@ -154,3 +167,12 @@ void insertInputStrings(nalFile *nf, vList *vl, char **varnames);
 void insertInputNum(nalFile *nf, vList *vl, char* name);
 
 void print(nalFile *nf, vList *vl, char *varcon);
+
+void setRandom(vList *vl, char *name);
+
+void setVariable(nalFile *nf, vList *vl);
+bool validSet(char *name, char *val);
+
+void incVar(nalFile *nf, vList *vl, char *name);
+
+void skipToMatchingBracket(nalFile *nf, vList *vl);

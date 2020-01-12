@@ -1,5 +1,6 @@
 {
-
    RND ( %N )
+   PRINTN %N
+   INC ( %N )
    PRINTN %N
 }
