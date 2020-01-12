@@ -1,6 +1,13 @@
 {
-   FILE "filename.nal"
-   IN2STR ( $C , $ZER )
-   INNUM ( %NV )
-   ABORT
+   PRINTN "Input 2 Strings:"
+   IN2STR ( $STRONE , $STRTWO )
+   PRINTN "Input 2 Strings:"
+   IN2STR ( $STRTWO , $STRTHREE )
+   PRINTN "Input a Number:"
+   INNUM ( %NUMONE )
+   PRINTN "Input a Number:"
+   INNUM ( %NUMONE )
+   PRINTN $STRONE
+   PRINTN $STRTWO
+   PRINTN %NUMONE
 }

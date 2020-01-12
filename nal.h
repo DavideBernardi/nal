@@ -1,5 +1,8 @@
 /*To do:
+Left To Do:
 ADD UNIT TESTING FOR:
+   insertInputNum()
+   insertInputStrings()
 
 
 Possible Improvements:
@@ -25,7 +28,10 @@ Note: This is only used when initially reading in each space-separated string,
 #define ERRORLINELENGTH 75
 #define SYNTAXERRORLENGTH 50
 
-#define MAXINPUTSTRLEN 1000
+/*Maximum amount of chars of user input (in in2str or innum)
+Note: max is 1000, last char is end of string*/
+#define MAXINPUTSTRLEN 1001
+#define MAXINPUTNUMLEN 1001
 
 /*Number of words that are part of each of these rule's syntax
 i.e. <IN2STR> = "IN2STR", "(", "STRVAR", ",", "STRVAR", ")"
@@ -86,6 +92,7 @@ void ERROR(char* const msg);
 /*These are malloc and calloc but also give errors if they fail to allocate*/
 void *allocate(int size, char* const msg);
 void *callocate(int size1, int size2, char* const msg);
+char *allocString(const char *str);
 
 /*Base Functions*/
 void checkInput(int argc, char const *argv[]);
@@ -144,3 +151,6 @@ char ROTbase(char c, char base, int rotVal, int alphabet);
 bool isnumber(char c);
 
 void insertInputStrings(nalFile *nf, vList *vl, char **varnames);
+void insertInputNum(nalFile *nf, vList *vl, char* name);
+
+void print(nalFile *nf, vList *vl, char *varcon);

@@ -38,3 +38,8 @@ These files will have all the functions required to handle variables.
 I stored all variables as strings.
 
 Testing these functions was easy because we already had a testfile setup for mvm, so I slightly adapted that, surprisingly I didn't encounter any errors while testing this (except a bunch of syntax errors like missing commas and things like that).
+
+Now I could start interpeting the commands which used variables.
+
+I started with the input, as a first iteration just to keep it simple, I used scanf into a string with a set maximum size. This can easily cause an overflow and is something that will need to be looked at in the future.
+But for now assuming variable names will have <1000 characters allows us to easily store user input. I tested this writing .nal files only containing innum and only containing in2str. There were some issues with freeing the pointers I used to read the variable names but aside from that, smooth sailing.

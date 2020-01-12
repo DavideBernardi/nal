@@ -1,10 +1,9 @@
 {
-   FILE "filename.nal"
-   IN2STR ( $C , $ZER )
-   INNUM ( %NV )
-   RND ( %N )
    PRINT "Hello World! From test1"
    PRINTN "Hello World! From test1"
-   JUMP 1
-   ABORT
+   PRINTN 325.123
+   PRINTN -54353
+   PRINTN 0.01
+   PRINTN 0
+
 }

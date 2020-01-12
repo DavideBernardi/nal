@@ -1,6 +1,5 @@
 #include "nal.h"
 
-
 int main(int argc, char const *argv[])
 {
    nalFile *nf;
@@ -687,14 +686,14 @@ instr in2str(nalFile *nf, vList *vl)
    #ifdef INTERP
    int vFound;
    char **varnames;
-
-   varnames = (char**)allocate(2*sizeof(char *),"Variable names array");
-   vFound = 0;
    #endif
 
-   correct = TRUE;
-
    if (strsame(nf->words[nf->currWord], syntax[0])) {
+      correct = TRUE;
+      #ifdef INTERP
+      varnames = (char**)allocate(2*sizeof(char *),"Variable names array");
+      vFound = 0;
+      #endif
       wordStep(nf,vl,1);
       for (i = 1; i < IN2STRWORDS; i++) {
          if (strsame(syntax[i], "STRVAR")) {
@@ -702,8 +701,7 @@ instr in2str(nalFile *nf, vList *vl)
                correct = FALSE;
             }else {
                #ifdef INTERP
-               varnames[vFound] = (char *)allocate(sizeof(char)*(strlen(nf->words[nf->currWord])+1),"Variable name");
-               strcpy(varnames[vFound],nf->words[nf->currWord]);
+               varnames[vFound] = allocString(nf->words[nf->currWord]);
                vFound++;
                #endif
             }
@@ -712,32 +710,41 @@ instr in2str(nalFile *nf, vList *vl)
                correct = FALSE;
             }
          }
-         if (!correct) {;
+         if (!correct) {
+            #ifdef INTERP
+            free(varnames[0]);
+            free(varnames[1]);
+            free(varnames);
+            #endif
             syntaxERROR(nf,vl, syntax[i-1], syntax[i], nf->currWord);
          }
          wordStep(nf,vl,1);
       }
       #ifdef INTERP
       insertInputStrings(nf,vl,varnames);
+      free(varnames[0]);
+      free(varnames[1]);
+      free(varnames);
       #endif
       return EXECUTED;
    }
    return NOTEXECUTED;
 }
 
+/*Using scanf to place the input into an array of fixed size can cause overflow errors, please improve this.*/
 void insertInputStrings(nalFile *nf, vList *vl, char **varnames)
 {
    char str1[MAXINPUTSTRLEN], str2[MAXINPUTSTRLEN];
 
    if (scanf("%s %s", str1, str2)!=2) {
+      free(varnames[0]);
+      free(varnames[1]);
+      free(varnames);
       nalERROR(nf, vl, "Error while receiving string input, terminating . . .\n");
    }
 
    vList_insert(vl, varnames[0],str1);
    vList_insert(vl, varnames[1],str2);
-   free(varnames[0]);
-   free(varnames[1]);
-   free(varnames);
 }
 
 instr innum(nalFile *nf, vList *vl)
@@ -745,7 +752,9 @@ instr innum(nalFile *nf, vList *vl)
    int i;
    bool correct;
    char syntax[INNUMWORDS][MAXWORDSIZE] = {"INNUM", "(", "NUMVAR", ")"};
-
+   #ifdef INTERP
+   char *name;
+   #endif
    correct = TRUE;
 
    if (strsame(nf->words[nf->currWord], syntax[0])) {
@@ -754,6 +763,10 @@ instr innum(nalFile *nf, vList *vl)
          if (strsame(syntax[i], "NUMVAR")) {
             if (!isnumvar(nf->words[nf->currWord])) {
                correct = FALSE;
+            } else {
+               #ifdef INTERP
+               name = allocString(nf->words[nf->currWord]);
+               #endif
             }
          } else {
                if (!strsame(nf->words[nf->currWord], syntax[i])) {
@@ -761,13 +774,37 @@ instr innum(nalFile *nf, vList *vl)
             }
          }
          if (!correct) {
+            #ifdef INTERP
+            free(name);
+            #endif
             syntaxERROR(nf,vl, syntax[i-1], syntax[i], nf->currWord);
          }
          wordStep(nf,vl,1);
       }
+      #ifdef INTERP
+      insertInputNum(nf,vl,name);
+      free(name);
+      #endif
       return EXECUTED;
    }
    return NOTEXECUTED;
+}
+
+/*Using scanf to place the input into an array of fixed size can cause overflow errors, please improve this.*/
+void insertInputNum(nalFile *nf, vList *vl, char* name)
+{
+   char num[MAXINPUTSTRLEN];
+
+   if (scanf("%s", num)!=1) {
+      free(name);
+      nalERROR(nf, vl, "Error while receiving number input, terminating . . .\n");
+   }
+   if (!isnumcon(num)) {
+      free(name);
+      nalERROR(nf, vl, "Input is not a valid number, terminating . . .\n");
+   }
+
+   vList_insert(vl, name ,num);
 }
 
 /*Can Add index to ERROR message by printing to a string and passing that string*/
@@ -802,11 +839,37 @@ instr nalPrint(nalFile *nf, vList *vl)
       if (!isvarcon(nf->words[nf->currWord])) {
          syntaxERROR(nf,vl, nf->words[nf->currWord-1], "VARCON",nf->currWord);
       }
-      /*if currWord-1 is PRINTN, printf("\n")*/
+      #ifdef INTERP
+      print(nf, vl, nf->words[nf->currWord]);
+      if (strsame(nf->words[nf->currWord-1],"PRINTN")) {
+         printf("\n");
+      }
+      #endif
       wordStep(nf,vl,1);
       return EXECUTED;
    }
    return NOTEXECUTED;
+}
+
+void print(nalFile *nf, vList *vl, char *varcon)
+{
+   char *printThis, *var;
+   if (isstrcon(varcon)) {
+      printThis = getString(varcon);
+   }
+   if (isnumcon(varcon)) {
+      printThis = allocString(varcon);
+   }
+   if (isvar(varcon)) {
+      var = vList_search(vl, varcon);
+      if (var == NULL) {
+         nalERROR(nf, vl, "Trying to print uninitialized variable, terminating . . .\n");
+      }
+      printThis = allocString(var);
+   }
+
+   printf("%s", printThis);
+   free(printThis);
 }
 
 instr nalRnd(nalFile *nf, vList *vl)
@@ -1104,4 +1167,15 @@ void *callocate(int size1, int size2, char* const msg)
    }
 
    return p;
+}
+
+/*Given a string, it allocates some new space to store it and copies it, returns a pointer to the new space*/
+char *allocString(const char *str)
+{
+   char *newStr;
+
+   newStr = (char *)allocate(sizeof(char)*(strlen(str)+1),"String");
+   strcpy(newStr,str);
+
+   return newStr;
 }

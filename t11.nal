@@ -1,3 +1,7 @@
 {
+   PRINTN "Input 2 Strings:"
    IN2STR ( $C , $ZER )
+   PRINTN "Input 2 Strings:"
+   IN2STR ( $ZER , $D )
+
 }
