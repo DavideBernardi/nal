@@ -1,4 +1,7 @@
 /*To do:
+
+Possible testing strategy: have a different #ifdef INSTRUCT #endif for each instruction, when testing the instruction just compile with only -DINSTRUCT, so the rest of the file is parsed except for the defined instruction.
+This way can also test only 2 functions and how they interact together.
 Left To Do:
 
    IMPORTANT: FINISH IFEQUAL CHECKING BECAUSE AT THE MOMENT IT IS VERY BAD I.E. IT JUST CHECKS IF THE STRINGS ARE THE SAME
@@ -64,12 +67,14 @@ Note: max is 1000, last char is end of string*/
 #define MAXRANCHARS 3
 
 #define MAXDOUBLESIZE 1100
+#define EPSILON 0.000000000000000001
 
 #define strsame(A,B) (strcmp(A, B)==0)
 
 typedef enum {FALSE, TRUE} bool;
 typedef enum {NOTEXECUTED, EXECUTED} instr;
 typedef enum {NOTEXEC, EXECPASS, EXECFAIL} cond;
+typedef enum {NOCOMP, SMALLER, EQUAL, GREATER} comp;
 typedef enum {NUM, STR, ROTSTR} vartype;
 
 typedef struct nalFile{
@@ -154,6 +159,8 @@ bool isnumcon(char const *word);
 bool isvar(char const *word);
 bool iscon(char const *word);
 bool isvarcon(char const *word);
+bool isstr(char const *word);
+bool isnum(char const *word);
 
 bool validVar(char const *word, char c);
 
@@ -175,4 +182,10 @@ bool validSet(char *name, char *val);
 
 void incVar(nalFile *nf, vList *vl, char *name);
 
+bool condEqual(nalFile *nf, vList *vl, char *varcon1, char *varcon2);
 void skipToMatchingBracket(nalFile *nf, vList *vl);
+comp compStrings(nalFile *nf, vList *vl, char *str1, char *str2);
+char *extractStr(nalFile* nf, vList *vl, char *str);
+comp compNums(nalFile *nf, vList *vl, char *num1, char *num2);
+double extractNum(nalFile* nf, vList *vl, char *num);
+comp compDoubles(double n1, double n2);

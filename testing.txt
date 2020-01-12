@@ -43,3 +43,7 @@ Now I could start interpeting the commands which used variables.
 
 I started with the input, as a first iteration just to keep it simple, I used scanf into a string with a set maximum size. This can easily cause an overflow and is something that will need to be looked at in the future.
 But for now assuming variable names will have <1000 characters allows us to easily store user input. I tested this writing .nal files only containing innum and only containing in2str. There were some issues with freeing the pointers I used to read the variable names but aside from that, smooth sailing.
+
+The first big problem I found was when writing the code for ifequal. I realized that if my code (even just my parser !!) found a closing bracket "}", my instrs() function would once again call itself, without increasing the file index !! So it would just recursively call itself and return until all the open brackets "{" got closed by one single "}" (because the index wasn't moving), and then the program would stop !!
+So all this time if in any of the .nal file I parsed there were more than one "}", the program would have just stopped parsing there and returned no error message, just "Parsed OK".
+This is something I almost definitely would not have caught if the assignment was to only submit the parser, scary! 

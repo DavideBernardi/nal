@@ -1,7 +1,8 @@
 {
    PRINTN "Input 2 Strings:"
-   IN2STR ( $C , $ZER )
+   IN2STR ( $A , $B )
    PRINTN "Input 2 Strings:"
-   IN2STR ( $ZER , $D )
+   IN2STR ( $B , $C )
+   
 
 }

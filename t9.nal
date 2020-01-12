@@ -1,10 +1,84 @@
 {
+   $A = "Hello"
+   IFEQUAL ( "Hello" , $A ) {
+      PRINTN "It works 1"
+         PRINTN "Hi"
+   }
+
+   IFEQUAL ( $A , "Hello" ) {
+      PRINTN "It works 2"
+   }
+   $B = "Hello"
+   IFEQUAL ( $A , $B ) {
+      PRINTN "It works 3"
+   }
+   IFEQUAL ( $B , $A ) {
+      PRINTN "It works 4"
+   }
+
+   %A = 1
+   IFEQUAL ( 1 , %A ) {
+      PRINTN "It works 5"
+   }
+   IFEQUAL ( %A , 1 ) {
+      PRINTN "It works 6"
+   }
+   %B = 1
+   IFEQUAL ( %A , %B ) {
+      PRINTN "It works 7"
+   }
+   IFEQUAL ( %B , %A ) {
+      PRINTN "It works 8"
+   }
+
 
    IFEQUAL ( 17.5 , 17.8 ) {
+      PRINTN "It doesn't work 1"
+      ABORT
+   }
+   IFEQUAL ( "Hello" , "Hellu" ) {
+      PRINTN "It doesn't work 2"
+      ABORT
+   }
+   $A = "Hella"
+   IFEQUAL ( "Hello" , $A ) {
+      PRINTN "It doesn't work 3"
+      ABORT
+   }
+   IFEQUAL ( $A , "Hello" ) {
+      PRINTN "It doesn't work 4"
+      ABORT
+   }
+   $B = "Hellu"
+   IFEQUAL ( $A , $B ) {
+      PRINTN "It doesn't work 5"
+      ABORT
+   }
+   IFEQUAL ( $B , $A ) {
+      PRINTN "It doesn't work 6"
+      ABORT
+   }
+
+   %A = 2
+   IFEQUAL ( 1 , %A ) {
+      PRINTN "It doesn't work 7"
+      ABORT
+   }
+   IFEQUAL ( %A , 1 ) {
+      PRINTN "It doesn't work 8"
+      ABORT
+   }
+   %B = 1
+   IFEQUAL ( %A , %B ) {
+      PRINTN "It doesn't work"
+      ABORT
+   }
+   IFEQUAL ( %B , %A ) {
       PRINTN "It doesn't work"
       ABORT
    }
 
-   PRINTN "It works"
+
+   PRINTN "It works."
 
 }
