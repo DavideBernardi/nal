@@ -1,6 +1,6 @@
 {
    RND ( %N )
-   PRINTN %N
+   PRINT %N
    INC ( %N )
-   PRINTN %N
+   PRINT %N
 }

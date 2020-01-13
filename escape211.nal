@@ -18,11 +18,11 @@
    $SECHEKSE = "Carl and his bike are stood here."
    $SETOUCH = "There's a strangely Swedish cry, and Carl comes running in at speed shouting 'Stop - keep off my beautiful bike'"
    $SEROT = "Ooh dear - a poor understanding of rot18 there :-("
-   $SWCHEKNOTCHATTY = "Carl would normally talk to you, but he's still upset about you abusing his bike !"
+   $SECHEKNOTCHATTY = "Carl would normally talk to you, but he's still upset about you abusing his bike !"
 
    $NE = "You're in the north-east corner of 2.11. Looks like you can go West and South from here. Neill's there at a computer, coding something but looking pensive. Maybe you should talk to him ?"
    $NECANTGO = "There's a line of chairs across the lab blocking your way."
-   $NEILL = "Neill says ''I'm writing a program that converts a string into it's phonepad equivalent - you know, how 1-800-NEILL is really the number 1-800-63455 ... Maybe it could become part of an adventure game or something ?''" 
+   $NEILL = "Neill says ''I'm writing a program that converts a string into it's phonepad equivalent - you know, how 1-800-NEILL is really the number 1-800-63455 ... Maybe it could become part of an adventure game or something ?''"
 
    $FOYER = "You've escaped, congratulations ! You step outside and you see Simon Lock. He starts waving a Java textbook at you and saying 'Get back inside the Coding Prison!'"
 
@@ -38,5 +38,5 @@
    PRINT ""
 
    FILE "labsw.nal"
-   
+
 }

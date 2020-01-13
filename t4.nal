@@ -1,13 +1,13 @@
 {
-   PRINTN "Input 2 Strings:"
+   PRINT "Input 2 Strings:"
    IN2STR ( $STRONE , $STRTWO )
-   PRINTN "Input 2 Strings:"
+   PRINT "Input 2 Strings:"
    IN2STR ( $STRTWO , $STRTHREE )
-   PRINTN "Input a Number:"
+   PRINT "Input a Number:"
    INNUM ( %NUMONE )
-   PRINTN "Input a Number:"
+   PRINT "Input a Number:"
    INNUM ( %NUMONE )
-   PRINTN $STRONE
-   PRINTN $STRTWO
-   PRINTN %NUMONE
+   PRINT $STRONE
+   PRINT $STRTWO
+   PRINT %NUMONE
 }

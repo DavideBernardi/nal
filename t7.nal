@@ -1,5 +1,6 @@
 {
 
    RND ( %N )
-   PRINTN %N
+   PRINTN "A Random Number: "
+   PRINT %N
 }

@@ -1,0 +1,88 @@
+{
+   $A = "Hellz"
+   IFGREATER ( "Oello" , $A ) {
+      PRINT "Greater works 1"
+         PRINT "Hi"
+   }
+
+   IFGREATER ( $A , "Hello" ) {
+      PRINT "Greater works 2"
+   }
+   $B = "Hello"
+   IFGREATER ( $A , $B ) {
+      PRINT "Greater works 3"
+   }
+   $B = "Oello"
+   IFGREATER ( $B , $A ) {
+      PRINT "Greater works 4"
+   }
+
+   %A = 1
+   IFGREATER ( 2 , %A ) {
+      PRINT "Greater works 5"
+   }
+   IFGREATER ( %A , -0.71 ) {
+      PRINT "Greater works 6"
+   }
+   %B = -0.71
+   IFGREATER ( %A , %B ) {
+      PRINT "Greater works 7"
+   }
+   %B = 2
+   IFGREATER ( %B , %A ) {
+      PRINT "Greater works 8"
+   }
+
+
+   IFGREATER ( 17.5 , 17.8 ) {
+      PRINT "Greater doesn't work 1"
+      ABORT
+   }
+   IFGREATER ( "Hello" , "Hellu" ) {
+      PRINT "Greater doesn't work 2"
+      ABORT
+   }
+   $A = "Hello"
+   IFGREATER ( "Hella" , $A ) {
+      PRINT "Greater doesn't work 3"
+      ABORT
+   }
+   IFGREATER ( $A , "Hellz" ) {
+      PRINT "Greater doesn't work 4"
+      ABORT
+   }
+   $B = "Hellu"
+   IFGREATER ( $A , $B ) {
+      PRINT "Greater doesn't work 5"
+      ABORT
+   }
+   $B = "Hella"
+   IFGREATER ( $B , $A ) {
+      PRINT "Greater doesn't work 6"
+      ABORT
+   }
+
+   %A = 2
+   IFGREATER ( 1 , %A ) {
+      PRINT "Greater doesn't work 7"
+      ABORT
+   }
+   IFGREATER ( %A , 593.012 ) {
+      PRINT "Greater doesn't work 8"
+      ABORT
+   }
+   %B = 3
+   IFGREATER ( %A , %B ) {
+      PRINT "Greater doesn't work"
+      ABORT
+   }
+   %B = 0
+   IFGREATER ( %B , %A ) {
+      PRINT "Greater doesn't work"
+      ABORT
+   }
+
+
+   PRINT "Greater works."
+
+}

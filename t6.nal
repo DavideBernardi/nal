@@ -1,9 +1,9 @@
 {
-   PRINT "Hello World! From test1"
-   PRINTN "Hello World! From test1"
-   PRINTN 325.123
-   PRINTN -54353
-   PRINTN 0.01
-   PRINTN 0
+   PRINTN "Testing Print"
+   PRINT "Testing Numbers Printing:"
+   PRINT 325.123
+   PRINT -54353
+   PRINT 0.01
+   PRINT 0
 
 }

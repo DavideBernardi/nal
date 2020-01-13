@@ -4,7 +4,9 @@ int main(int argc, char const *argv[])
 {
    nalFile *nf;
    vList *vl;
+   time_t t;
    nalVar *curr;
+   srand((unsigned) time(&t));
 
    test();
 
@@ -525,7 +527,6 @@ void program(nalFile *nf, vList *vl)
 void instrs(nalFile *nf, vList *vl)
 {
    if (strsame(nf->words[nf->currWord], "}")) {
-      printf("} at index %d out of %d\n", nf->currWord, nf->totWords-1);
       if (nf->currWord<nf->totWords-1) {
          wordStep(nf,vl,1);
       }
@@ -652,6 +653,46 @@ bool isnumber(char c)
       return TRUE;
    }
    return FALSE;
+}
+
+char *extractStr(nalFile* nf, vList *vl, char *str)
+{
+   char *val, *temp;
+
+   val = NULL;
+
+   if (isstrcon(str)) {
+      val = getString(str);
+   }else{
+      temp = vList_search(vl, str);
+      if (temp == NULL) {
+         nalERROR(nf, vl, "Trying to compare uninitialized variable, terminating . . .\n");
+      }
+      val = allocString(temp);
+   }
+
+   return val;
+}
+
+double extractNum(nalFile* nf, vList *vl, char *name)
+{
+   double num;
+   char *val;
+
+
+   if (isnumcon(name)) {
+      if (sscanf(name,"%lf",&num)!=1) {
+         nalERROR(nf,vl,"Critical Error while reading number constant, terminating . . .\n");
+      }
+   }
+   if (isnumvar(name)) {
+      val = vList_search(vl, name);
+      if (sscanf(val,"%lf",&num)!=1) {
+         nalERROR(nf,vl,"Critical Error while reading stored number variable, terminating . . .\n");
+      }
+   }
+
+   return num;
 }
 
 /*This should successfully abort a program with multiple files opened*/
@@ -845,7 +886,7 @@ instr nalPrint(nalFile *nf, vList *vl)
       }
       #ifdef INTERP
       print(nf, vl, nf->words[nf->currWord]);
-      if (strsame(nf->words[nf->currWord-1],"PRINTN")) {
+      if (strsame(nf->words[nf->currWord-1],"PRINT")) {
          printf("\n");
       }
       #endif
@@ -867,6 +908,7 @@ void print(nalFile *nf, vList *vl, char *varcon)
    if (isvar(varcon)) {
       var = vList_search(vl, varcon);
       if (var == NULL) {
+         printf("%s\n", varcon);
          nalERROR(nf, vl, "Trying to print uninitialized variable, terminating . . .\n");
       }
       printThis = allocString(var);
@@ -925,9 +967,6 @@ void setRandom(vList *vl, char *name)
 {
    char* val;
    int rnum;
-   time_t t;
-
-   srand((unsigned) time(&t));
 
    rnum = (rand()%(RANMAX+1))+RANMIN;
    val = (char *)allocate(sizeof(char)*MAXRANCHARS, "Random number");
@@ -990,7 +1029,7 @@ cond nalIfequal(nalFile *nf, vList *vl)
    char syntax[IN2STRWORDS][MAXWORDSIZE] = {"IFEQUAL", "(", "VARCON", ",", "VARCON", ")"};
    cond condition;
    #ifdef INTERP
-   char **values;
+   char **vNames;
    int vFound;
    #endif
 
@@ -1000,7 +1039,7 @@ cond nalIfequal(nalFile *nf, vList *vl)
       correct = TRUE;
       condition = EXECPASS;
       #ifdef INTERP
-      values = (char**)allocate(2*sizeof(char *),"Values array");
+      vNames = (char**)allocate(2*sizeof(char *),"Values array");
       vFound = 0;
       #endif
       wordStep(nf,vl,1);
@@ -1010,7 +1049,7 @@ cond nalIfequal(nalFile *nf, vList *vl)
                correct = FALSE;
             }else{
                #ifdef INTERP
-               values[vFound] = allocString(nf->words[nf->currWord]);
+               vNames[vFound] = allocString(nf->words[nf->currWord]);
                vFound++;
                #endif
             }
@@ -1021,21 +1060,21 @@ cond nalIfequal(nalFile *nf, vList *vl)
          }
          if (!correct) {
             #ifdef INTERP
-            free(values[0]);
-            free(values[1]);
-            free(values);
+            free(vNames[0]);
+            free(vNames[1]);
+            free(vNames);
             #endif
             syntaxERROR(nf,vl, syntax[i-1], syntax[i], nf->currWord);
          }
          wordStep(nf,vl,1);
       }
       #ifdef INTERP
-      if (!condEqual(nf,vl,values[0],values[1])) {
+      if (!condEqual(nf,vl,vNames[0],vNames[1])) {
          condition =  EXECFAIL;
       }
-      free(values[0]);
-      free(values[1]);
-      free(values);
+      free(vNames[0]);
+      free(vNames[1]);
+      free(vNames);
       #endif
    }
    return condition;
@@ -1085,25 +1124,6 @@ comp compStrings(nalFile *nf, vList *vl, char *str1, char *str2)
    return SMALLER;
 }
 
-char *extractStr(nalFile* nf, vList *vl, char *str)
-{
-   char *val, *temp;
-
-   val = NULL;
-
-   if (isstrcon(str)) {
-      val = getString(str);
-   }else{
-      temp = vList_search(vl, str);
-      if (temp == NULL) {
-         nalERROR(nf, vl, "Trying to compare uninitialized variable, terminating . . .\n");
-      }
-      val = allocString(temp);
-   }
-
-   return val;
-}
-
 comp compNums(nalFile *nf, vList *vl, char *num1, char *num2)
 {
    double val1, val2;
@@ -1112,27 +1132,6 @@ comp compNums(nalFile *nf, vList *vl, char *num1, char *num2)
    val2 = extractNum(nf,vl,num2);
 
    return compDoubles(val1,val2);
-}
-
-double extractNum(nalFile* nf, vList *vl, char *num)
-{
-   double val;
-   char *listVal;
-
-
-   if (isnumcon(num)) {
-      if (sscanf(num,"%lf",&val)!=1) {
-         nalERROR(nf,vl,"Critical Error while reading number constant, terminating . . .\n");
-      }
-   }
-   if (isnumvar(num)) {
-      listVal = vList_search(vl, num);
-      if (sscanf(listVal,"%lf",&val)!=1) {
-         nalERROR(nf,vl,"Critical Error while reading stored number variable, terminating . . .\n");
-      }
-   }
-
-   return val;
 }
 
 comp compDoubles(double n1, double n2)
@@ -1155,15 +1154,31 @@ cond nalIfgreater(nalFile *nf, vList *vl)
    int i;
    bool correct;
    char syntax[IN2STRWORDS][MAXWORDSIZE] = {"IFGREATER", "(", "VARCON", ",", "VARCON", ")"};
+   cond condition;
+   #ifdef INTERP
+   char **vNames;
+   int vFound;
+   #endif
 
-   correct = TRUE;
+   condition = NOTEXEC;
 
    if (strsame(nf->words[nf->currWord], syntax[0])) {
+      correct = TRUE;
+      condition = EXECPASS;
+      #ifdef INTERP
+      vNames = (char**)allocate(2*sizeof(char *),"Values array");
+      vFound = 0;
+      #endif
       wordStep(nf,vl,1);
       for (i = 1; i < IN2STRWORDS; i++) {
          if (strsame(syntax[i], "VARCON")) {
             if (!isvarcon(nf->words[nf->currWord])) {
                correct = FALSE;
+            } else {
+               #ifdef INTERP
+               vNames[vFound] = allocString(nf->words[nf->currWord]);
+               vFound++;
+               #endif
             }
          } else {
                if (!strsame(nf->words[nf->currWord], syntax[i])) {
@@ -1171,13 +1186,47 @@ cond nalIfgreater(nalFile *nf, vList *vl)
             }
          }
          if (!correct) {
+            #ifdef INTERP
+            free(vNames[0]);
+            free(vNames[1]);
+            free(vNames);
+            #endif
             syntaxERROR(nf,vl, syntax[i-1], syntax[i], nf->currWord);
          }
          wordStep(nf,vl,1);
       }
-      return EXECPASS;
+      #ifdef INTERP
+      if (!condGreater(nf,vl,vNames[0],vNames[1])) {
+         condition =  EXECFAIL;
+      }
+      free(vNames[0]);
+      free(vNames[1]);
+      free(vNames);
+      #endif
    }
-   return NOTEXEC;
+   return condition;
+}
+
+bool condGreater(nalFile *nf, vList *vl, char *varcon1, char *varcon2)
+{
+   comp comparison;
+
+   comparison = NOCOMP;
+   if (isstr(varcon1) && isstr(varcon2)) {
+      comparison = compStrings(nf, vl, varcon1, varcon2);
+   }
+   if (isnum(varcon1) && isnum(varcon2)) {
+      comparison = compNums(nf, vl, varcon1, varcon2);
+   }
+
+   if (comparison == NOCOMP) {
+      nalERROR(nf,vl,"Comparing two VARCONs of uncomparable types, terminating . . .\n");
+   }
+
+   if (comparison==GREATER) {
+      return TRUE;
+   }
+   return FALSE;
 }
 
 instr nalInc(nalFile *nf, vList *vl)
@@ -1271,8 +1320,6 @@ void setVariable(nalFile *nf, vList *vl)
    }
    if (isstrcon(valstr)) {
       val = getString(valstr);
-      printf("Val : %s\n", val);
-      printf("Word: %s\n", nf->words[nf->currWord]);
    }else if (isvar(valstr)) {
       val = allocString(vList_search(vl,valstr));
    } else if (isnumcon(valstr)) {

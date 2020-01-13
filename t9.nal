@@ -1,84 +1,83 @@
 {
    $A = "Hello"
    IFEQUAL ( "Hello" , $A ) {
-      PRINTN "It works 1"
-         PRINTN "Hi"
+      PRINT "Equal works 1"
    }
 
    IFEQUAL ( $A , "Hello" ) {
-      PRINTN "It works 2"
+      PRINT "Equal works 2"
    }
    $B = "Hello"
    IFEQUAL ( $A , $B ) {
-      PRINTN "It works 3"
+      PRINT "Equal works 3"
    }
    IFEQUAL ( $B , $A ) {
-      PRINTN "It works 4"
+      PRINT "Equal works 4"
    }
 
    %A = 1
    IFEQUAL ( 1 , %A ) {
-      PRINTN "It works 5"
+      PRINT "Equal works 5"
    }
    IFEQUAL ( %A , 1 ) {
-      PRINTN "It works 6"
+      PRINT "Equal works 6"
    }
    %B = 1
    IFEQUAL ( %A , %B ) {
-      PRINTN "It works 7"
+      PRINT "Equal works 7"
    }
    IFEQUAL ( %B , %A ) {
-      PRINTN "It works 8"
+      PRINT "Equal works 8"
    }
 
 
    IFEQUAL ( 17.5 , 17.8 ) {
-      PRINTN "It doesn't work 1"
+      PRINT "Equal doesn't work 1"
       ABORT
    }
    IFEQUAL ( "Hello" , "Hellu" ) {
-      PRINTN "It doesn't work 2"
+      PRINT "Equal doesn't work 2"
       ABORT
    }
    $A = "Hella"
    IFEQUAL ( "Hello" , $A ) {
-      PRINTN "It doesn't work 3"
+      PRINT "Equal doesn't work 3"
       ABORT
    }
    IFEQUAL ( $A , "Hello" ) {
-      PRINTN "It doesn't work 4"
+      PRINT "Equal doesn't work 4"
       ABORT
    }
    $B = "Hellu"
    IFEQUAL ( $A , $B ) {
-      PRINTN "It doesn't work 5"
+      PRINT "Equal doesn't work 5"
       ABORT
    }
    IFEQUAL ( $B , $A ) {
-      PRINTN "It doesn't work 6"
+      PRINT "Equal doesn't work 6"
       ABORT
    }
 
    %A = 2
    IFEQUAL ( 1 , %A ) {
-      PRINTN "It doesn't work 7"
+      PRINT "Equal doesn't work 7"
       ABORT
    }
    IFEQUAL ( %A , 1 ) {
-      PRINTN "It doesn't work 8"
+      PRINT "Equal doesn't work 8"
       ABORT
    }
    %B = 1
    IFEQUAL ( %A , %B ) {
-      PRINTN "It doesn't work"
+      PRINT "Equal doesn't work 9"
       ABORT
    }
    IFEQUAL ( %B , %A ) {
-      PRINTN "It doesn't work"
+      PRINT "Equal doesn't work 10"
       ABORT
    }
 
 
-   PRINTN "It works."
+   PRINT "Equal works."
 
 }

@@ -1,21 +1,43 @@
 /*To do:
+   ADD UNIT TESTING FOR:
+      isnumber()
+      exactStr()
+      extractNum()
+      insertInputStrings()
+      insertInputNum()
+      print()
+      setRandom()
+      skipToMatchingBracket()
+      condEqual()
+      condGreater()
+      compString()
+      compNums()
+      compDoubles()
+      incVar()
+      setVariable()
+      validSet()
+      isstr()
+      isnum()
+
+getString() should be able to deal with \n, \0 type of strings as well (copy char by char, if getc == \, do something based on next getc)
+
+make the ERRORS say something about which file the error was caused in
+
+A lot of overflow hazards when handling user input.
+How do you accurately allocate for someting written in by the user ??
+Or what is the appropriate way to do warnings & error checks?
+
+Change nalERROR in some places to a new function (indexERROR) which mentions the index at which the error happens
 
 Possible testing strategy: have a different #ifdef INSTRUCT #endif for each instruction, when testing the instruction just compile with only -DINSTRUCT, so the rest of the file is parsed except for the defined instruction.
 This way can also test only 2 functions and how they interact together.
 Left To Do:
-
-   IMPORTANT: FINISH IFEQUAL CHECKING BECAUSE AT THE MOMENT IT IS VERY BAD I.E. IT JUST CHECKS IF THE STRINGS ARE THE SAME
-ADD UNIT TESTING FOR:
-   insertInputNum()
-   insertInputStrings()
 
 
 Possible Improvements:
    The vList is trash, make it a sorted list or a hash table for god's sake
 
    in insertInputStrings since we use scanf we risk overflow errors.
-
-   in ifequal and ifgreater we need a larger infrastructure to check whether the varcons to compare are of the same type and don't just look the same
 */
 
 #include <stdio.h>
@@ -26,7 +48,6 @@ Possible Improvements:
 #include <ctype.h>
 
 #include "vList.h"
-
 
 /*Maximum size of a single %s pulled from the file,
 Note: This is only used when initially reading in each space-separated string,
@@ -63,19 +84,25 @@ Note: max is 1000, last char is end of string*/
 /*Used in setRandom()*/
 #define RANMAX 99
 #define RANMIN 0
-/*Maximum amount of chars the random number can be + 1 for \0*/
+/*Used to "randomize" the seed itself before giving out the random number */
+#define RANSEEDVAR 42
+/*Maximum amount of chars the random number can be (+ 1 for \0)*/
 #define MAXRANCHARS 3
 
+/*Used when converting a double to a string*/
 #define MAXDOUBLESIZE 1100
+/*Used when comparing two doubles*/
 #define EPSILON 0.000000000000000001
 
 #define strsame(A,B) (strcmp(A, B)==0)
 
 typedef enum {FALSE, TRUE} bool;
 typedef enum {NOTEXECUTED, EXECUTED} instr;
+typedef enum {NUM, STR, ROTSTR} vartype;
+
+/*These are only used for <IFCOND>*/
 typedef enum {NOTEXEC, EXECPASS, EXECFAIL} cond;
 typedef enum {NOCOMP, SMALLER, EQUAL, GREATER} comp;
-typedef enum {NUM, STR, ROTSTR} vartype;
 
 typedef struct nalFile{
    char **words;
@@ -110,6 +137,8 @@ void ERROR(char* const msg);
 /*These are malloc and calloc but also give errors if they fail to allocate*/
 void *allocate(int size, char* const msg);
 void *callocate(int size1, int size2, char* const msg);
+/*This function takes in a string and copies it into a correctly sized pointer,
+it then returns that pointer */
 char *allocString(const char *str);
 
 /*Base Functions*/
@@ -165,27 +194,34 @@ bool isnum(char const *word);
 bool validVar(char const *word, char c);
 
 /*Interpreting*/
+/*General VARCON handling*/
+/*Given a strcon word, returns the actual string (i.e. removes the extra "" or ##)*/
 char *getString(char const* word);
 char ROT(char c);
 char ROTbase(char c, char base, int rotVal, int alphabet);
 bool isnumber(char c);
+/*Given a strvar or numvar name, returns it's actual str value or double value*/
+char *extractStr(nalFile* nf, vList *vl, char *str);
+double extractNum(nalFile* nf, vList *vl, char *name);
 
+/*INPUT*/
 void insertInputStrings(nalFile *nf, vList *vl, char **varnames);
 void insertInputNum(nalFile *nf, vList *vl, char* name);
-
+/*PRINT*/
 void print(nalFile *nf, vList *vl, char *varcon);
-
+/*RAND*/
 void setRandom(vList *vl, char *name);
-
+/*SET*/
 void setVariable(nalFile *nf, vList *vl);
 bool validSet(char *name, char *val);
-
+/*INC*/
 void incVar(nalFile *nf, vList *vl, char *name);
-
-bool condEqual(nalFile *nf, vList *vl, char *varcon1, char *varcon2);
+/*IFCOND*/
 void skipToMatchingBracket(nalFile *nf, vList *vl);
 comp compStrings(nalFile *nf, vList *vl, char *str1, char *str2);
-char *extractStr(nalFile* nf, vList *vl, char *str);
 comp compNums(nalFile *nf, vList *vl, char *num1, char *num2);
-double extractNum(nalFile* nf, vList *vl, char *num);
 comp compDoubles(double n1, double n2);
+/*IFEQUAL*/
+bool condEqual(nalFile *nf, vList *vl, char *varcon1, char *varcon2);
+/*IFGREATER*/
+bool condGreater(nalFile *nf, vList *vl, char *varcon1, char *varcon2);
