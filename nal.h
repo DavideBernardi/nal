@@ -1,5 +1,5 @@
 /*To do:
-   ADD UNIT TESTING FOR:
+ADD UNIT TESTING FOR:
       isnumber()
       extractStr()
       extractNum()
@@ -16,6 +16,8 @@
       incVar()
       setVariable()
       validSet()
+
+GO OVER PREVIOUS TESTING AS SOME FUNCTIONS HAVE CHANGED A LOT
 
 TEST ERRORS:
 ALL OF THESE ERRORS NEED TO WORK PROPERLY BOTH WHEN ONLY OPENING THE
