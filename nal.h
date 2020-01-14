@@ -1,7 +1,7 @@
 /*To do:
    ADD UNIT TESTING FOR:
       isnumber()
-      exactStr()
+      extractStr()
       extractNum()
       insertInputStrings()
       insertInputNum()
@@ -16,28 +16,56 @@
       incVar()
       setVariable()
       validSet()
-      isstr()
-      isnum()
 
-getString() should be able to deal with \n, \0 type of strings as well (copy char by char, if getc == \, do something based on next getc)
+TEST ERRORS:
+ALL OF THESE ERRORS NEED TO WORK PROPERLY BOTH WHEN ONLY OPENING THE
+FILE WITH THE ERROR AND ALSO WHEN THE FILE IS OPENED INSIDE ANOTHER FILE
+   error in getFile() - open file with wrong name
+   error in getWordSizes - open empty file
+   error in wordLength - open file with unmatched " or #
+   error in wordStep - open file with no closing }
+   error in program() - open file with no starting {
+   error in instruct() - open file with unknown syntax rule
+   error in extractStr/Num() - open file which tries to use uninitialized
+                               variable (both string and num)
+   error in insertInputString - really hard to trigger this error
+   error in insertInputNum - insert something that isn't a num
+   error in jump - have file with JUMP followed by a number that
+                   isn't a valid index
+   error in print - print uninitialized variable
+   condEqual - compare two varcons of uncomparable type
+   condGreater - same as above
+   setVariable - set a variable to a wrong type
 
-make the ERRORS say something about which file the error was caused in
+ISSUES:
+   When opening an empty file, the string containing the file name doesn't get
+   freed before execution is stopped.
 
-A lot of overflow hazards when handling user input.
-How do you accurately allocate for someting written in by the user ??
-Or what is the appropriate way to do warnings & error checks?
+   getFile() should not just terminate, should also close all other opened nal
+   files if used during execution
 
-Change nalERROR in some places to a new function (indexERROR) which mentions the index at which the error happens
+   getString() should be able to deal with \n, \0 type of strings as well
+   (copy char by char, if getc == \, do something based on next getc)
 
-Possible testing strategy: have a different #ifdef INSTRUCT #endif for each instruction, when testing the instruction just compile with only -DINSTRUCT, so the rest of the file is parsed except for the defined instruction.
-This way can also test only 2 functions and how they interact together.
-Left To Do:
+   A lot of overflow hazards when handling user input.
+   How do you accurately allocate for someting written in by the user ??
+   Or what is the appropriate way to do warnings & error checks?
+
+
+
+Possible testing strategy:
+   Have a different #ifdef INSTRUCT #endif for
+   each instruction, when testing the instruction just compile with only
+   -DINSTRUCT, so the rest of the file is parsed except for the defined
+   instruction.
+   This way can also test only 2 functions and how they interact together.
 
 
 Possible Improvements:
    The vList is trash, make it a sorted list or a hash table for god's sake
 
    in insertInputStrings since we use scanf we risk overflow errors.
+   (many other places also)
 */
 
 #include <stdio.h>
@@ -54,7 +82,11 @@ Note: This is only used when initially reading in each space-separated string,
       actual words are then stored in properly allocated memory.*/
 #define MAXWORDSIZE 1000
 #define ERRORLINELENGTH 75
-#define SYNTAXERRORLENGTH 50
+#define TOKENIZEERRORLENGTH 100
+#define SYNTAXERRORLENGTH 100
+#define INDEXERRORLENGTH 150
+#define NALERRORLENGTH 100
+#define VARIABLEERRORLENGTH 100
 
 /*Number of words that are part of each of these rule's syntax
 i.e. <IN2STR> = "IN2STR", "(", "STRVAR", ",", "STRVAR", ")"
@@ -108,6 +140,7 @@ typedef struct nalFile{
    char **words;
    int currWord;
    int totWords;
+   char *name;
    struct nalFile *prev;
 } nalFile;
 
@@ -129,9 +162,12 @@ void testInterpFunctions(void);
 void testGetString(char const* word, char const* realStr);
 void testROT(void);
 
-/*ERROR message functions*/
+/*ERROR functions*/
 void nalERROR(nalFile *nf, vList *vl, char* const msg);
+void indexERROR(nalFile *nf, vList *vl, char* const msg, int index);
+void tokenizeERROR(nalFile *nf, vList *vl, char const *file, char const *msg);
 void syntaxERROR(nalFile *nf, vList *vl, char const *prevWord, char const *expWord,  int index);
+void variableERROR(nalFile *nf, vList *vl, char const *msg,char* const name, int index);
 void ERROR(char* const msg);
 
 /*These are malloc and calloc but also give errors if they fail to allocate*/
@@ -141,15 +177,15 @@ void *callocate(int size1, int size2, char* const msg);
 it then returns that pointer */
 char *allocString(const char *str);
 
-/*Base Functions*/
+/*Check argv*/
 void checkInput(int argc, char const *argv[]);
-FILE *getFile(char const file[]);
 
-/*These are used to read in and tokenize the file*/
-intList *getWordSizes(FILE *fp);
-int wordLength(char const *currWord, FILE *fp, intList *wordLens);
-void tokenizeFile(nalFile *nf, FILE *fp, intList *wordLengths);
-void getWord(char *word, FILE* fp);
+/*These are used to read in and tokenize a file into a nalFile*/
+FILE *getFile(nalFile *nf, vList *vl, char const file[]);
+intList *getWordSizes(nalFile *nf, vList *vl, FILE *fp);
+int wordLength(nalFile *nf, vList *vl, char const *currWord, FILE *fp, intList *wordLens);
+void tokenizeFile(nalFile *nf, vList *vl, FILE *fp, intList *wordLengths);
+void getWord(nalFile *nf, vList *vl, char *word, FILE* fp);
 void strAppend(char *word, char c);
 bool multiWordString(char const *word);
 /*These are for an int linked intList used within getWordSizes*/
@@ -158,7 +194,7 @@ void freeList(intList **nf);
 
 /*Functions used to play with the nalFile structures*/
 nalFile *initNalFile(void);
-void setupNalFile(nalFile *nf, char const file[]);
+void setupNalFile(nalFile *nf, vList *vl, char const file[]);
 void terminateNalFile(nalFile **nf);
 void terminateAllNalFiles(nalFile *nf);
 void wordStep(nalFile *nf, vList *vl, int s);
@@ -181,6 +217,7 @@ cond nalIfgreater(nalFile *nf, vList *vl);
 instr nalInc(nalFile *nf, vList *vl);
 instr nalSet(nalFile *nf, vList *vl);
 
+/*VARCON checks*/
 bool isstrcon(char const *word);
 bool isnumvar(char const *word);
 bool isstrvar(char const *word);
@@ -193,7 +230,8 @@ bool isnum(char const *word);
 
 bool validVar(char const *word, char c);
 
-/*Interpreting*/
+/*INTERPRETING*/
+
 /*General VARCON handling*/
 /*Given a strcon word, returns the actual string (i.e. removes the extra "" or ##)*/
 char *getString(char const* word);
