@@ -5,7 +5,6 @@ int main(int argc, char const *argv[])
    nalFile *nf;
    vList *vl;
    time_t t;
-   nalVar *curr;
 
    srand((unsigned) time(&t));
    test();
@@ -19,11 +18,7 @@ int main(int argc, char const *argv[])
    #ifndef INTERP
    printf("Parsed OK\n");
    #endif
-   curr = vl->head;
-   while (curr!=NULL) {
-      printf("Name: %s | Value: %s\n", curr->name, curr->val);
-      curr = curr->next;
-   }
+   /*vList_print(vl);*/
    terminateNalFile(&nf);
    vList_free(&vl);
    return 0;
@@ -52,6 +47,13 @@ void test(void)
 
 void testTokenization(void)
 {
+   /*multiWordString
+   allocateNode
+   wordLength
+   getWordSizes
+   getWord
+   tokenizeFile
+   wordStep*/
    intNode *n, *curr, *oldNode;
    FILE *testFile;
    intList *wordLengths;
@@ -59,7 +61,8 @@ void testTokenization(void)
    nalFile *testNal;
    vList *testList;
    int i, strCheck;
-   char wordsInTest1[WORDSINTEST1][MAXWORDSIZE] = {"{", "PRINT", "\"Hello World! From test1\"", "}"};
+   char wordsInTest1[WORDSINTEST1][TESTWORDSIZE] =
+   {"{", "PRINT", "\"Hello World! From test1\"", "}"};
 
    /*Testing multiWordString*/
    assert(multiWordString("Hello")==FALSE);
@@ -80,7 +83,8 @@ void testTokenization(void)
    wordLengths = NULL;
    for (i = 0; i < WORDSINTEST1; i++) {
       assert(fscanf(testFile, "%s", testWord)==1);
-      assert(wordLength(NULL,NULL,testWord, testFile, wordLengths)==(int)strlen(wordsInTest1[i]));
+      assert(wordLength(NULL,NULL,testWord, testFile, wordLengths)==
+      (int)strlen(wordsInTest1[i]));
    }
    fclose(testFile);
 
@@ -103,7 +107,6 @@ void testTokenization(void)
 
    /*Testing getWord*/
    testFile = getFile(NULL, NULL, "test1.nal");
-   /*IMPORTANT IF A TOKENIZED WORD IS LONGER THAN 1000 CHARS, THIS CODE WILL BREAK*/
    for (i = 0; i < WORDSINTEST1; i++) {
       getWord(NULL, NULL, testWord, testFile);
       strCheck = strsame(testWord,wordsInTest1[i]);
@@ -136,6 +139,13 @@ void testTokenization(void)
 
 void testParsingFunctions(void)
 {
+   /*validVar
+   isnumvar
+   isstrvar
+   isstrcon
+   isnumcon
+   No need to test isvar(), iscon(), isvarcon(), isstr() and isnum() because they are just unions of other functions*/
+
    /*Test validVar*/
    assert(validVar("$C",'$'));
    assert(validVar("$VARNAME",'$'));
@@ -211,12 +221,13 @@ void testParsingFunctions(void)
    assert(!isnumcon("4,3"));
    assert(!isnumcon("SOMEWORD"));
    assert(!isnumcon("123F123"));
-
-   /*No need to test isvar(), iscon(), isvarcon(), isstr() and isnum() because they are just unions of other functions*/
 }
 
 void testInterpFunctions(void)
 {
+   /*ROT()
+   getString()*/
+
    testROT();
 
    /*Test getString*/
@@ -231,7 +242,7 @@ void testInterpFunctions(void)
 
 void testROT(void)
 {
-   /*For some reason I need to add +1 to these arrays or I get overflow errors - doesn't the [] syntax automatically add 1 for the end of string char?*/
+   /*+1 for \0*/
    char PlainUpper[ALPHABET+1];
    char RotUpper[ALPHABET+1];
    char PlainLower[ALPHABET+1];
@@ -295,8 +306,7 @@ FILE *getFile(nalFile *nf, vList *vl, char const file[])
    return ifp;
 }
 
-/* Return a intList containing the exact size of each word in the file,
-   the intList structure also contains the total number of words. */
+/* Returns a intList containing the exact size of each word in the file, and the total number of words. */
 intList *getWordSizes(nalFile *nf, vList *vl, FILE *fp)
 {
    char currWord[MAXWORDSIZE];
@@ -306,6 +316,7 @@ intList *getWordSizes(nalFile *nf, vList *vl, FILE *fp)
    wordLens = (intList *)allocate(sizeof(intList), "List");
    wordLens->size = 0;
 
+   /*Code for filling head of list*/
    if (fscanf(fp, "%s", currWord)==1) {
       wordLens->size++;
       curr = allocateNode(wordLength(nf, vl, currWord, fp, wordLens));
@@ -316,6 +327,7 @@ intList *getWordSizes(nalFile *nf, vList *vl, FILE *fp)
       tokenizeERROR(nf,vl,nf->name,"The File is Empty");
    }
 
+   /*Code for filling rest of list*/
    while (fscanf(fp, "%s", currWord)==1) {
       wordLens->size++;
       curr->next = allocateNode(wordLength(nf, vl, currWord, fp, wordLens));
@@ -482,6 +494,8 @@ nalFile *initNalFile(void)
    return nf;
 }
 
+/*This function gets the file which has the name stored in nf->name, tokenizes it and places it into nf.
+NOTE: the attributes 'name' and 'prev' of the nalFile structure have to be set before this function is called*/
 void setupNalFile(nalFile *nf, vList *vl)
 {
    FILE *fp;
@@ -623,9 +637,10 @@ char *getString(char const* word)
    char *str;
    int strSize, i;
 
-   /*-2 spaces to ger rid of "" or ##*/
+   /*-2 to get rid of "" or ##*/
    strSize = strlen(word)-2;
 
+   /*+1 for \0*/
    str = (char *)allocate(sizeof(char)*(strSize+1), "String");
    if (word[0]=='\"') {
       for (i = 0; i < strSize; i++) {
@@ -653,6 +668,8 @@ char ROT(char c)
    return c;
 }
 
+/*mod (%) handled negatives in a weird way, used if statement instead.
+Formula is c = (((c-base)-rotVal)%alphabet)+base*/
 char ROTbase(char c, char base, int rotVal, int alphabet)
 {
    c = c - base;
@@ -747,7 +764,7 @@ instr in2str(nalFile *nf, vList *vl)
 {
    int i;
    bool correct;
-   char syntax[IN2STRWORDS][MAXWORDSIZE] = {"IN2STR", "(", "STRVAR", ",", "STRVAR", ")"};
+   char syntax[IN2STRWORDS][MAXSYNTAXWORDSIZE] = {"IN2STR", "(", "STRVAR", ",", "STRVAR", ")"};
    #ifdef INTERP
    int vFound;
    char **varnames;
@@ -799,9 +816,16 @@ instr in2str(nalFile *nf, vList *vl)
 /*Using scanf to place the input into an array of fixed size can cause overflow errors, please improve this.*/
 void insertInputStrings(nalFile *nf, vList *vl, char **varnames)
 {
-   char str1[MAXINPUTSTRLEN], str2[MAXINPUTSTRLEN];
+   char *str1, *str2;
+
+   /*Allocating instead of using str1[MAXINPUTSTRLEN]
+   because too big for stack*/
+   str1 = allocate(MAXINPUTSTRLEN*sizeof(char),"Input String");
+   str2 = allocate(MAXINPUTSTRLEN*sizeof(char),"Input String");
 
    if (scanf("%s %s", str1, str2)!=2) {
+      free(str1);
+      free(str2);
       free(varnames[0]);
       free(varnames[1]);
       free(varnames);
@@ -810,13 +834,15 @@ void insertInputStrings(nalFile *nf, vList *vl, char **varnames)
 
    vList_insert(vl, varnames[0],str1);
    vList_insert(vl, varnames[1],str2);
+   free(str1);
+   free(str2);
 }
 
 instr innum(nalFile *nf, vList *vl)
 {
    int i;
    bool correct;
-   char syntax[INNUMWORDS][MAXWORDSIZE] = {"INNUM", "(", "NUMVAR", ")"};
+   char syntax[INNUMWORDS][MAXSYNTAXWORDSIZE] = {"INNUM", "(", "NUMVAR", ")"};
    #ifdef INTERP
    char *name;
    #endif
@@ -928,7 +954,7 @@ void print(nalFile *nf, vList *vl, char *varcon)
    if (isvar(varcon)) {
       var = vList_search(vl, varcon);
       if (var == NULL) {
-         printf("%s\n", varcon);
+         printf("%s", varcon);
          variableERROR(nf, vl, "Trying to print uninitialized variable",varcon,nf->currWord);
       }
       printThis = allocString(var);
@@ -942,12 +968,10 @@ instr nalRnd(nalFile *nf, vList *vl)
 {
    int i;
    bool correct;
-   char syntax[RANDWORDS][MAXWORDSIZE] = {"RND", "(", "NUMVAR", ")"};
+   char syntax[RANDWORDS][MAXSYNTAXWORDSIZE] = {"RND", "(", "NUMVAR", ")"};
    #ifdef INTERP
    char *name;
    #endif
-
-
 
    if (strsame(nf->words[nf->currWord], syntax[0])) {
       correct = TRUE;
@@ -1046,7 +1070,7 @@ cond nalIfequal(nalFile *nf, vList *vl)
 {
    int i;
    bool correct;
-   char syntax[IN2STRWORDS][MAXWORDSIZE] = {"IFEQUAL", "(", "VARCON", ",", "VARCON", ")"};
+   char syntax[IN2STRWORDS][MAXSYNTAXWORDSIZE] = {"IFEQUAL", "(", "VARCON", ",", "VARCON", ")"};
    cond condition;
    #ifdef INTERP
    char **vNames;
@@ -1173,7 +1197,7 @@ cond nalIfgreater(nalFile *nf, vList *vl)
 {
    int i;
    bool correct;
-   char syntax[IN2STRWORDS][MAXWORDSIZE] = {"IFGREATER", "(", "VARCON", ",", "VARCON", ")"};
+   char syntax[IN2STRWORDS][MAXSYNTAXWORDSIZE] = {"IFGREATER", "(", "VARCON", ",", "VARCON", ")"};
    cond condition;
    #ifdef INTERP
    char **vNames;
@@ -1253,7 +1277,7 @@ instr nalInc(nalFile *nf, vList *vl)
 {
    int i;
    bool correct;
-   char syntax[INCWORDS][MAXWORDSIZE] = {"INC", "(", "NUMVAR", ")"};
+   char syntax[INCWORDS][MAXSYNTAXWORDSIZE] = {"INC", "(", "NUMVAR", ")"};
    #ifdef INTERP
    char *name = NULL;
    #endif
@@ -1570,13 +1594,6 @@ void tokenizeERROR(nalFile *nf, vList *vl, char const *file, char const *msg)
    vList_free(&vl);
    terminateAllNalFiles(nf);
    free(errorLine);
-   exit(EXIT_FAILURE);
-}
-
-void ERROR(char* const msg)
-{
-
-   fprintf(stderr, "%s", msg);
    exit(EXIT_FAILURE);
 }
 

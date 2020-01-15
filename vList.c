@@ -84,6 +84,17 @@ char *vList_search(vList *vl, char *name)
    return NULL;
 }
 
+void vList_print(vList *vl)
+{
+   nalVar *curr;
+
+   curr = vl->head;
+   while (curr!=NULL) {
+      printf("Name: %s | Value: %s\n", curr->name, curr->val);
+      curr = curr->next;
+   }
+}
+
 void vList_free(vList **p)
 {
    vList *vl;

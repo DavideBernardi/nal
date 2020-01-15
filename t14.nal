@@ -1,0 +1,14 @@
+{
+   $A = "Bleh"
+   PRINT "Here 1"
+   IFEQUAL ( "Hello" , $A ) {
+      JUMP 29
+   }
+
+   $A = "Hello"
+   IFEQUAL ( "Hello" , $A ) {
+      JUMP 4
+   }
+
+   PRINT "Here 2"
+}

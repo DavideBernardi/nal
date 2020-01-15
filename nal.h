@@ -1,8 +1,60 @@
-/*To do:
-NOTE: if a double is set as the index after <JUMP>, only the integer part is considered (not closest integer approximation, no automatic abourt)
+/*
+NOTES:
+If a double is set as the index after <JUMP>, only the integer part
+is considered (not closest integer approximation, no automatic abort)
+
+When taking in input from the user, the string has a maximum size of 1000000
+(Which then gets reallocated appropriately), however if the input string is
+larger than that, overflow happens with no error messages.
+
+
+ISSUES:
+
+The vList is trash, make it a sorted list or a hash table for god's sake
+
+error in extractStr/Num()
+   When opening file which tries to use uninitialized
+   variable (both string and num) the array which stores
+   the names of variables is not freed;
+
+Not sure what happens when using JUMP inside a (or multiple) conditional(s).
+Or jumping from outside a conditonal to inside.
+Just real confusing
+(Note: At the moment my code miraculously handles this okay because instrs()
+is written such that if it is parsing the last word and the last word is "}",
+it will keep reparsing it until it closes all open parenthesis and then exit
+normally.)
+
+
+POSSIBLE TESTING STRATEGY:
+      Have a different #ifdef INSTRUCT #endif for
+      each instruction, when testing the instruction just compile with only
+      -DINSTRUCT, so the rest of the file is parsed except for the defined
+      instruction.
+      This way can also test only 2 functions and how they interact together.
+
+
+POSSIBLE IMPROVEMENTS:
+
+
+
+
+IMPROVE CODE FOR:
+      in2str()
+      innum()
+      jump() [low priority]
+      nalRnd()
+      nalInc()
+      nalIfEqual() [high priority]
+      nalIfGreater() [high priority]
+      + condGreater and condEqual can be a single function
+
+
+
 
 ADD UNIT TESTING FOR:
-      isnumber()
+      setupNalFile()
+      terminateAllNalFiles()
       extractStr()
       extractNum()
       insertInputStrings()
@@ -18,42 +70,9 @@ ADD UNIT TESTING FOR:
       incVar()
       setVariable()
       validSet()
+      allocString()
 
 GO OVER PREVIOUS TESTING AS SOME FUNCTIONS HAVE CHANGED A LOT
-
-TEST ERRORS:
-ALL OF THESE ERRORS NEED TO WORK PROPERLY BOTH WHEN ONLY OPENING THE
-FILE WITH THE ERROR AND ALSO WHEN THE FILE IS OPENED INSIDE ANOTHER FILE
-
-
-
-   error in extractStr/Num() - open file which tries to use uninitialized
-                               variable (both string and num)
-
-
-ISSUES:
-
-
-
-   A lot of overflow hazards when handling user input.
-   How do you accurately allocate for someting written in by the user ??
-   Or what is the appropriate way to do warnings & error checks?
-
-
-
-Possible testing strategy:
-   Have a different #ifdef INSTRUCT #endif for
-   each instruction, when testing the instruction just compile with only
-   -DINSTRUCT, so the rest of the file is parsed except for the defined
-   instruction.
-   This way can also test only 2 functions and how they interact together.
-
-
-Possible Improvements:
-   The vList is trash, make it a sorted list or a hash table for god's sake
-
-   in insertInputStrings since we use scanf we risk overflow errors.
-   (many other places also)
 */
 
 #include <stdio.h>
@@ -65,11 +84,27 @@ Possible Improvements:
 
 #include "vList.h"
 
-/*Maximum size of a single %s pulled from the file,
-Note: This is only used when initially reading in each space-separated string,
-      actual words are then stored in properly allocated memory.*/
-#define MAXWORDSIZE 1000
-#define ERRORLINELENGTH 75
+/*Used in testing*/
+#define WORDSINTEST1 4
+#define TESTWORDSIZE 1000
+
+/*Maximum size of a single %s pulled from the file.
+      Note: This is only used when initially reading in each
+      space-separated string,actual words are then stored in
+      properly allocated memory.*/
+#define MAXWORDSIZE 10000
+
+/*Size of words in a syntax rule i.e. "JUMP", "IN2STR", "VARCON", ...*/
+#define MAXSYNTAXWORDSIZE 100
+
+/*Used when converting a double to a string*/
+#define MAXDOUBLESIZE 10000
+
+/*Used when comparing two doubles*/
+#define EPSILON 0.000000000000000001
+
+/*Base lengths of each of the error messages (these are then resized
+based on the individual message so no risk of overlow)*/
 #define TOKENIZEERRORLENGTH 100
 #define SYNTAXERRORLENGTH 100
 #define INDEXERRORLENGTH 150
@@ -85,10 +120,6 @@ i.e. <IN2STR> = "IN2STR", "(", "STRVAR", ",", "STRVAR", ")"
 #define INCWORDS 4
 #define SETWORDS 3
 
-/*Used in testing*/
-#define WORDSINTEST1 4
-#define ERRORSTRINGLEN 1000
-
 /*Used in ROT()*/
 #define ROTCHAR 13
 #define ALPHABET 26
@@ -98,8 +129,8 @@ i.e. <IN2STR> = "IN2STR", "(", "STRVAR", ",", "STRVAR", ")"
 
 /*Maximum amount of chars of user input (in in2str or innum)
 Note: max is 1000, last char is end of string*/
-#define MAXINPUTSTRLEN 1001
-#define MAXINPUTNUMLEN 1001
+#define MAXINPUTSTRLEN 1000000
+#define MAXINPUTNUMLEN MAXDOUBLESIZE
 
 /*Used in setRandom()*/
 #define RANMAX 99
@@ -109,11 +140,6 @@ Note: max is 1000, last char is end of string*/
 /*Maximum amount of chars the random number can be (+ 1 for \0)*/
 #define MAXRANCHARS 3
 
-/*Used when converting a double to a string*/
-#define MAXDOUBLESIZE 1100
-/*Used when comparing two doubles*/
-#define EPSILON 0.000000000000000001
-
 #define strsame(A,B) (strcmp(A, B)==0)
 
 typedef enum {FALSE, TRUE} bool;
@@ -121,7 +147,7 @@ typedef enum {NOTEXECUTED, EXECUTED} instr;
 typedef enum {NUM, STR, ROTSTR} vartype;
 
 /*These are only used for <IFCOND>*/
-typedef enum {NOTEXEC, EXECPASS, EXECFAIL} cond;
+typedef enum {NOTEXEC, EXECPASS, EXECFAIL} cond; /*Similar to instr*/
 typedef enum {NOCOMP, SMALLER, EQUAL, GREATER} comp;
 
 typedef struct nalFile{
@@ -142,6 +168,12 @@ typedef struct intList{
    int size;
 }intList;
 
+/*NOTE: In a lot of these functions, nl and vl are only passed so if an ERROR
+occurs they can be appropriately freed*/
+
+/*Check argv*/
+void checkInput(int argc, char const *argv[]);
+
 /*Testing*/
 void test(void);
 void testTokenization(void);
@@ -156,17 +188,13 @@ void indexERROR(nalFile *nf, vList *vl, char* const msg, int index);
 void tokenizeERROR(nalFile *nf, vList *vl, char const *file, char const *msg);
 void syntaxERROR(nalFile *nf, vList *vl, char const *prevWord, char const *expWord,  int index);
 void variableERROR(nalFile *nf, vList *vl, char const *msg,char* const name, int index);
-void ERROR(char* const msg);
 
 /*These are malloc and calloc but also give errors if they fail to allocate*/
 void *allocate(int size, char* const msg);
 void *callocate(int size1, int size2, char* const msg);
 /*This function takes in a string and copies it into a correctly sized pointer,
-it then returns that pointer */
+it then returns that pointer (which will need freeing at some point)*/
 char *allocString(const char *str);
-
-/*Check argv*/
-void checkInput(int argc, char const *argv[]);
 
 /*These are used to read in and tokenize a file into a nalFile*/
 FILE *getFile(nalFile *nf, vList *vl, char const file[]);

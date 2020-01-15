@@ -14,5 +14,7 @@ vList *vList_init(void);
 void vList_insert(vList *vl, char *name, char *val);
 /*Returns the name string, if no match returns NULL*/
 char *vList_search(vList *vl, char *name);
+/*Print all Variables to screen*/
+void vList_print(vList *vl);
 /*Frees all the variable nodes and the list*/
 void vList_free(vList **p);

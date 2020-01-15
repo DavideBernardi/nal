@@ -46,4 +46,10 @@ But for now assuming variable names will have <1000 characters allows us to easi
 
 The first big problem I found was when writing the code for ifequal. I realized that if my code (even just my parser !!) found a closing bracket "}", my instrs() function would once again call itself, without increasing the file index !! So it would just recursively call itself and return until all the open brackets "{" got closed by one single "}" (because the index wasn't moving), and then the program would stop !!
 So all this time if in any of the .nal file I parsed there were more than one "}", the program would have just stopped parsing there and returned no error message, just "Parsed OK".
-This is something I almost definitely would not have caught if the assignment was to only submit the parser, scary! 
+This is something I almost definitely would not have caught if the assignment was to only submit the parser, scary!
+
+What I did for testing interpreter functions:
+I kept them separate from the parsing functions when possible.
+For example, for in2str() we first parse the whole rule, we store the two STRVARS to store strings in and then we call another functions which gets the input and stores it into the two STRVARS.
+
+That way the "complex" part of the function can be normally unit tested.
