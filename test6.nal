@@ -1,6 +1,6 @@
 {
 
-   PRINT "I'm thinking of a number (0-99).\nCan you guess it?"
+   PRINT "I'm thinking of a number (0-99). Can you guess it?"
    RND ( %MINE )
    %CNT = 0 
 

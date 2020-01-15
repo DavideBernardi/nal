@@ -4,7 +4,8 @@
    RND ( %A )
    PRINT %A
    INC ( %C )
-   IFGREATER ( %C , 9 ) {
+   IFGREATER ( $C , 9 ) {
+      PRINT #Who knows what this says#
       ABORT
    }
    JUMP 4

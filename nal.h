@@ -29,13 +29,11 @@ FILE WITH THE ERROR AND ALSO WHEN THE FILE IS OPENED INSIDE ANOTHER FILE
 
    error in extractStr/Num() - open file which tries to use uninitialized
                                variable (both string and num)
-   condEqual - compare two varcons of uncomparable type
-   condGreater - same as above
+
 
 ISSUES:
 
-   getString() should be able to deal with \n, \0 type of strings as well
-   (copy char by char, if getc == \, do something based on next getc)
+
 
    A lot of overflow hazards when handling user input.
    How do you accurately allocate for someting written in by the user ??
