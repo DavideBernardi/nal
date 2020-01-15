@@ -12,10 +12,6 @@ ISSUES:
 
 The vList is trash, make it a sorted list or a hash table for god's sake
 
-error in extractStr/Num()
-   When opening file which tries to use uninitialized
-   variable (both string and num) the array which stores
-   the names of variables is not freed;
 
 Not sure what happens when using JUMP inside a (or multiple) conditional(s).
 Or jumping from outside a conditonal to inside.
@@ -36,22 +32,6 @@ POSSIBLE TESTING STRATEGY:
 
 POSSIBLE IMPROVEMENTS:
 
-
-
-
-IMPROVE CODE FOR:
-      in2str()
-      innum()
-      jump() [low priority]
-      nalRnd()
-      nalInc()
-      nalIfEqual() [high priority]
-      nalIfGreater() [high priority]
-      + condGreater and condEqual can be a single function
-
-
-
-
 ADD UNIT TESTING FOR:
       setupNalFile()
       terminateAllNalFiles()
@@ -62,9 +42,9 @@ ADD UNIT TESTING FOR:
       print()
       setRandom()
       skipToMatchingBracket()
-      condEqual()
-      condGreater()
-      compString()
+      condCalled()
+      condCheck()
+      compStrings()
       compNums()
       compDoubles()
       incVar()
@@ -119,6 +99,16 @@ i.e. <IN2STR> = "IN2STR", "(", "STRVAR", ",", "STRVAR", ")"
 #define RANDWORDS 4
 #define INCWORDS 4
 #define SETWORDS 3
+#define CONDWORDS 6
+
+#define MAXSYNTAXWORDS 10
+
+/*Amount of Varables or Constants that need to be interpreted from that function
+i.e. <IN2STR> uses 2 STRVARs*/
+#define VARSFROMIN2STR 2
+#define VARSFROMINNUM 1
+#define VARSFROMRAND 1
+#define VARSFROMCOND 2
 
 /*Used in ROT()*/
 #define ROTCHAR 13
@@ -140,6 +130,10 @@ Note: max is 1000, last char is end of string*/
 /*Maximum amount of chars the random number can be (+ 1 for \0)*/
 #define MAXRANCHARS 3
 
+/*Used to handle extractNum errors*/
+#define READERROR 0
+#define INITERROR 1
+
 #define strsame(A,B) (strcmp(A, B)==0)
 
 typedef enum {FALSE, TRUE} bool;
@@ -149,6 +143,8 @@ typedef enum {NUM, STR, ROTSTR} vartype;
 /*These are only used for <IFCOND>*/
 typedef enum {NOTEXEC, EXECPASS, EXECFAIL} cond; /*Similar to instr*/
 typedef enum {NOCOMP, SMALLER, EQUAL, GREATER} comp;
+
+
 
 typedef struct nalFile{
    char **words;
@@ -183,11 +179,13 @@ void testGetString(char const* word, char const* realStr);
 void testROT(void);
 
 /*ERROR functions*/
+void tokenizeERROR(nalFile *nf, vList *vl, char const *file, char const *msg);
 void nalERROR(nalFile *nf, vList *vl, char* const msg);
 void indexERROR(nalFile *nf, vList *vl, char* const msg, int index);
-void tokenizeERROR(nalFile *nf, vList *vl, char const *file, char const *msg);
 void syntaxERROR(nalFile *nf, vList *vl, char const *prevWord, char const *expWord,  int index);
 void variableERROR(nalFile *nf, vList *vl, char const *msg,char* const name, int index);
+/*extractNum is particularly hard to abort properly if an error happens, so I made a function that does that*/
+void handleExtractNumError(nalFile *nf, vList *vl, double errortype);
 
 /*These are malloc and calloc but also give errors if they fail to allocate*/
 void *allocate(int size, char* const msg);
@@ -204,7 +202,7 @@ void tokenizeFile(nalFile *nf, vList *vl, FILE *fp, intList *wordLengths);
 void getWord(nalFile *nf, vList *vl, char *word, FILE* fp);
 void strAppend(char *word, char c);
 bool multiWordString(char const *word);
-/*These are for an int linked intList used within getWordSizes*/
+/*These are only used for a Linked List used within getWordSizes*/
 intNode *allocateNode(int i);
 void freeList(intList **nf);
 
@@ -216,6 +214,10 @@ void terminateAllNalFiles(nalFile *nf);
 void wordStep(nalFile *nf, vList *vl, int s);
 
 /*Syntax*/
+char **checkSyntax(nalFile *nf, vList *vl, char syntax[MAXSYNTAXWORDS][MAXSYNTAXWORDSIZE], int syntaxSize, int varconsToBeFound);
+bool correctVARCON(char *varconType, char *word);
+void freeArray(char **array, int size);
+
 void program(nalFile *nf, vList *vl);
 void instrs(nalFile *nf, vList *vl);
 void instruct(nalFile *nf, vList *vl);
@@ -228,8 +230,7 @@ instr jump(nalFile *nf, vList *vl);
 instr nalPrint(nalFile *nf, vList *vl);
 instr nalRnd(nalFile *nf, vList *vl);
 instr nalIfcond(nalFile *nf, vList *vl);
-cond nalIfequal(nalFile *nf, vList *vl);
-cond nalIfgreater(nalFile *nf, vList *vl);
+cond nalIf(nalFile *nf, vList *vl);
 instr nalInc(nalFile *nf, vList *vl);
 instr nalSet(nalFile *nf, vList *vl);
 
@@ -255,12 +256,12 @@ char ROT(char c);
 char ROTbase(char c, char base, int rotVal, int alphabet);
 bool isnumber(char c);
 /*Given a strvar or numvar name, returns it's actual str value or double value*/
-char *extractStr(nalFile* nf, vList *vl, char *str);
-double extractNum(nalFile* nf, vList *vl, char *name);
+char *extractStr(vList *vl, char *str);
+double extractNum(vList *vl, char *name,bool *error);
 
 /*INPUT*/
 void insertInputStrings(nalFile *nf, vList *vl, char **varnames);
-void insertInputNum(nalFile *nf, vList *vl, char* name);
+void insertInputNum(nalFile *nf, vList *vl, char** name);
 /*PRINT*/
 void print(nalFile *nf, vList *vl, char *varcon);
 /*RAND*/
@@ -272,10 +273,8 @@ bool validSet(char *name, char *val);
 void incVar(nalFile *nf, vList *vl, char *name);
 /*IFCOND*/
 void skipToMatchingBracket(nalFile *nf, vList *vl);
-comp compStrings(nalFile *nf, vList *vl, char *str1, char *str2);
-comp compNums(nalFile *nf, vList *vl, char *num1, char *num2);
+comp compStrings(nalFile *nf, vList *vl, char **strs);
+comp compNums(nalFile *nf, vList *vl, char **nums);
 comp compDoubles(double n1, double n2);
-/*IFEQUAL*/
-bool condEqual(nalFile *nf, vList *vl, char *varcon1, char *varcon2);
-/*IFGREATER*/
-bool condGreater(nalFile *nf, vList *vl, char *varcon1, char *varcon2);
+bool condCheck(nalFile *nf, vList *vl, char *condition, char **varcons);
+bool condCalled(char const *word);

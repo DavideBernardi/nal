@@ -4,10 +4,10 @@
    %A = 17.6
    %B = %A
    $C = "17.8"
-   PRINTN "Some String Variables: "
-   PRINTN $A
-   PRINTN $B
-   PRINTN $C
-   PRINTN "And a Number Variable: "
-   PRINTN %B
+   PRINT "Some String Variables: "
+   PRINT $A
+   PRINT $B
+   PRINT $C
+   PRINT "And a Number Variable: "
+   PRINT %B
 }

@@ -24,10 +24,19 @@ int main(int argc, char const *argv[])
    return 0;
 }
 
+void checkInput(int argc, char const *argv[])
+{
+   if (argc!=2) {
+      fprintf(stderr, "Input must be of the form: %s <FILENAME>\n", argv[0]);
+      exit(EXIT_FAILURE);
+   }
+}
+
 void test(void)
 {
 /* initNatFile
-   terminateNalFile */
+   terminateNalFile
+    */
 
    nalFile *nf;
 
@@ -36,6 +45,7 @@ void test(void)
    assert(nf->words == NULL);
    assert(nf->currWord == 0);
    assert(nf->totWords == 0);
+
 
    terminateNalFile(&nf);
    assert(nf==NULL);
@@ -286,14 +296,160 @@ void testGetString(char const* word, char const* realStr)
    free(str);
 }
 
-void checkInput(int argc, char const *argv[])
+/*Error when something goes wrong durint the tokenization of a file (i.e. before the nalFile is even setup)*/
+void tokenizeERROR(nalFile *nf, vList *vl, char const *file, char const *msg)
 {
-   if (argc!=2) {
-      fprintf(stderr, "Input must be of the form: %s <FILENAME>\n", argv[0]);
-      exit(EXIT_FAILURE);
-   }
+   char *errorLine;
+   int errorLineLength;
+
+   errorLineLength = TOKENIZEERRORLENGTH;
+   errorLineLength += strlen(file);
+   errorLineLength += strlen(msg);
+
+   errorLine = (char *)allocate(errorLineLength*sizeof(char),"Error Line");
+
+   sprintf(errorLine, "ERROR MESSAGE: %s\nError occurred while tokenizing file: \"%s\"\nTERMINATING . . .\n", msg, file);
+
+   fprintf(stderr, "%s", errorLine);
+   vList_free(&vl);
+   terminateAllNalFiles(nf);
+   free(errorLine);
+   exit(EXIT_FAILURE);
 }
 
+/*Basic error when an error that has to do with a tokenized nalFile happens.*/
+void nalERROR(nalFile *nf, vList *vl, char* const msg)
+{
+   char *errorLine;
+   int errorLineLength;
+
+   errorLineLength = NALERRORLENGTH;
+   errorLineLength += strlen(msg);
+   errorLineLength += strlen(nf->name);
+
+   errorLine = (char *)allocate(errorLineLength*sizeof(char),"Error Line");
+
+   sprintf(errorLine, "ERROR MESSAGE: %s\nError occurred in file \"%s\"\nTERMINATING . . .\n", msg, nf->name);
+
+   vList_free(&vl);
+   terminateAllNalFiles(nf);
+   fprintf(stderr, "%s", errorLine);
+   free(errorLine);
+   exit(EXIT_FAILURE);
+}
+
+/*Error for when something goes wrong at a particular point in a tokenized nalFile*/
+void indexERROR(nalFile *nf, vList *vl, char* const msg, int index)
+{
+   char *errorLine;
+   int errorLineLength;
+
+   errorLineLength = INDEXERRORLENGTH;
+   errorLineLength += strlen(msg);
+   errorLineLength += strlen(nf->name);
+
+   errorLine = (char *)allocate(errorLineLength*sizeof(char),"Error Line");
+
+   sprintf(errorLine, "ERROR MESSAGE: %s\nError occurred at index %d of file \"%s\"\nTERMINATING . . .\n", msg, index,nf->name);
+
+   vList_free(&vl);
+   terminateAllNalFiles(nf);
+   fprintf(stderr, "%s", errorLine);
+   free(errorLine);
+   exit(EXIT_FAILURE);
+}
+
+/*Error for when something goes wrong at a particular point in a tokenized nalFile.
+SPECIFICALLY: A syntax rule is broken*/
+void syntaxERROR(nalFile *nf, vList *vl,char const *prevWord, char const *expWord,  int index)
+{
+   char *errorLine;
+   int errorLineLength;
+
+   errorLineLength = SYNTAXERRORLENGTH;
+   errorLineLength += strlen(expWord);
+   errorLineLength += strlen(prevWord);
+   errorLineLength += strlen(nf->name);
+
+   errorLine = (char *)allocate(errorLineLength*sizeof(char),"Error Line");
+
+   sprintf(errorLine, "Expected %s after %s at index %d in file \"%s\"\n", expWord, prevWord, index,nf->name);
+
+   vList_free(&vl);
+   terminateAllNalFiles(nf);
+   fprintf(stderr, "%s", errorLine);
+   free(errorLine);
+   exit(EXIT_FAILURE);
+}
+
+/*Error for when something goes wrong at a particular point in a tokenized nalFile.
+SPECIFICALLY: A variable is used incorrectly*/
+void variableERROR(nalFile *nf, vList *vl, char const *msg, char* const name, int index)
+{
+   char *errorLine;
+   int errorLineLength;
+
+   errorLineLength = VARIABLEERRORLENGTH;
+   errorLineLength += strlen(msg);
+   errorLineLength += strlen(name);
+   errorLineLength += strlen(nf->name);
+
+   errorLine = (char *)allocate(errorLineLength*sizeof(char),"Error Line");
+
+   sprintf(errorLine, "ERROR MESSAGE: %s\nAbout Variable %s in file \"%s\" around index %d\nTERMINATING . . .\n",msg,name,nf->name,index);
+
+   vList_free(&vl);
+   terminateAllNalFiles(nf);
+   fprintf(stderr, "%s", errorLine);
+   free(errorLine);
+   exit(EXIT_FAILURE);
+}
+
+/*this is malloc() with a built in error message if allocation fails*/
+void *allocate(int size, char* const msg)
+{
+   void *p;
+
+   p = malloc(size);
+   if (p == NULL) {
+      fprintf(stderr,"Couldn't allocate space for %s, Terminating ...\n", msg);
+      exit(EXIT_FAILURE);
+   }
+
+   return p;
+}
+
+/*this is calloc() with a built in error message if allocation fails*/
+void *callocate(int size1, int size2, char* const msg)
+{
+   void *p;
+
+   p = calloc(size1,size2);
+   if (p == NULL) {
+      fprintf(stderr,"Couldn't allocate space for %s, Terminating ...\n", msg);
+      exit(EXIT_FAILURE);
+   }
+
+   return p;
+}
+
+/*Given a string, it allocates some new space to store it and copies it, returns a pointer to the new space*/
+char *allocString(const char *str)
+{
+   char *newStr;
+
+   if (str == NULL) {
+      return NULL;
+   }
+
+   newStr = (char *)allocate(sizeof(char)*(strlen(str)+1),"String");
+   strcpy(newStr,str);
+
+   return newStr;
+}
+
+/*Given a file name file[], returns a pointer to the file structure for that file.
+nf and vl are only passed here in case they need to be freed after an error occurs - NULL pointers can be passed instead and if the file is read correctly nothing would change*/
 FILE *getFile(nalFile *nf, vList *vl, char const file[])
 {
    FILE *ifp;
@@ -306,7 +462,8 @@ FILE *getFile(nalFile *nf, vList *vl, char const file[])
    return ifp;
 }
 
-/* Returns a intList containing the exact size of each word in the file, and the total number of words. */
+/* Returns an integer List structure containing the exact size of each word in the file, and the total number of words.
+(Again nf and vl are only passed to be freed in case of ERRORS)*/
 intList *getWordSizes(nalFile *nf, vList *vl, FILE *fp)
 {
    char currWord[MAXWORDSIZE];
@@ -338,8 +495,8 @@ intList *getWordSizes(nalFile *nf, vList *vl, FILE *fp)
 }
 
 /*Finds length of the input word, if the word is the start of a string,
-it moves along the file until it finds the end of that string as strings count
-as one word*/
+it moves along the file until it finds the end of that string as strings count as one word
+(nf and vl only passed to be freed in case of ERRORS)*/
 int wordLength(nalFile *nf, vList *vl, char const *currWord, FILE *fp, intList *wordLens)
 {
    int wordLen;
@@ -363,7 +520,9 @@ int wordLength(nalFile *nf, vList *vl, char const *currWord, FILE *fp, intList *
    return wordLen;
 }
 
-/*allocates the exact amount of space for the array of words and then fills it up*/
+/*Allocates the exact amount of space for the array of words and then fills it up
+Note: Here nf is the file that needs to be tokenized, it needs to already have the pointer to the previous file stored in nf->prev (or NULL if it is the first file opened).
+vl is passed to be freed in case of ERRORS*/
 void tokenizeFile(nalFile *nf, vList* vl, FILE *fp, intList *wordLengths)
 {
    intNode *curr, *oldNode;
@@ -387,8 +546,9 @@ void tokenizeFile(nalFile *nf, vList* vl, FILE *fp, intList *wordLengths)
    free(wordLengths);
 }
 
-/*fills word (which is of the correct size thanks to getWordSizes)
-with the correct string from the file*/
+/*Fills word (which is of the correct size thanks to getWordSizes)
+with the correct string from the file.
+(nf and vl only passed to be freed in case of ERRORS).*/
 void getWord(nalFile *nf, vList *vl, char *word, FILE* fp)
 {
    char c, charToMatch;
@@ -412,7 +572,7 @@ void getWord(nalFile *nf, vList *vl, char *word, FILE* fp)
 
 }
 
-/*puts char c at the end of string word*/
+/*Puts char c at the end of string word*/
 void strAppend(char *word, char c)
 {
    int len;
@@ -423,7 +583,7 @@ void strAppend(char *word, char c)
    word[len+1] = '\0';
 }
 
-/*Says wether word opens a string without closing it (i.e. starts with a " or #
+/*Says wether 'word' opens a string without closing it (i.e. starts with a " or #
 but doesn't end with one)*/
 bool multiWordString(char const *word)
 {
@@ -542,6 +702,7 @@ void terminateAllNalFiles(nalFile *nf)
    }
 }
 
+/*Increases the nalFile word index by s, checks if it is out of bounds*/
 void wordStep(nalFile *nf, vList *vl, int s)
 {
    nf->currWord += s;
@@ -605,6 +766,89 @@ void instruct(nalFile *nf, vList *vl)
    indexERROR(nf,vl, "Word doesn't match any syntax rule",nf->currWord);
 }
 
+/*For rules with more complex syntax, simply pass an array of strings containing all the words and VARCONs that need to be in the syntax and parse it through here. Then return an array of strings containing all the VARCONs that need to be used by the interpeter*/
+char **checkSyntax(nalFile *nf, vList *vl, char syntax[MAXSYNTAXWORDS][MAXSYNTAXWORDSIZE], int syntaxSize, int varconsToBeFound)
+{
+   int i;
+   char **varcons;
+   #ifdef INTERP
+   int varconsFound;
+   #endif
+
+   varcons = (char**)allocate(varconsToBeFound*sizeof(char *),"VARCON array");
+   #ifdef INTERP
+   varconsFound = 0;
+   #else
+   /*Have to do this weird thing otherwise when compiling without -DINTERP
+   varconsToBeFound is a unused variable*/
+   free(varcons);
+   varcons = NULL;
+   #endif
+
+   for (i = 1; i < syntaxSize; i++) {
+      if (correctVARCON(syntax[i],nf->words[nf->currWord])) {
+         #ifdef INTERP
+         varcons[varconsFound] = allocString(nf->words[nf->currWord]);
+         varconsFound++;
+         #endif
+      } else if (!strsame(nf->words[nf->currWord], syntax[i])) {
+         #ifdef INTERP
+         freeArray(varcons,varconsToBeFound);
+         #endif
+         syntaxERROR(nf,vl, syntax[i-1], syntax[i], nf->currWord);
+      }
+      wordStep(nf,vl,1);
+   }
+
+   return varcons;
+}
+
+bool correctVARCON(char *varconType, char *word)
+{
+   if (strsame(varconType,"STRVAR")) {
+      return isstrvar(word);
+   }
+   if (strsame(varconType,"STRCON")) {
+      return isstrcon(word);
+   }
+   if (strsame(varconType,"NUMVAR")) {
+      return isnumvar(word);
+   }
+   if (strsame(varconType,"NUMCON")) {
+      return isnumcon(word);
+   }
+   if (strsame(varconType,"VAR")) {
+      return isvar(word);
+   }
+   if (strsame(varconType,"CON")) {
+      return iscon(word);
+   }
+   if (strsame(varconType,"VARCON")) {
+      return isvarcon(word);
+   }
+   if (strsame(varconType,"STR")) {
+      return isstr(word);
+   }
+   if (strsame(varconType,"NUM")) {
+      return isnum(word);
+   }
+   return FALSE;
+}
+
+void freeArray(char **array, int size)
+{
+   int i;
+
+   if (array == NULL) {
+      return;
+   }
+
+   for (i = 0; i < size; i++) {
+      free(array[i]);
+   }
+   free(array);
+}
+
 instr file(nalFile *nf, vList *vl)
 {
    #ifdef INTERP
@@ -629,107 +873,6 @@ instr file(nalFile *nf, vList *vl)
       return EXECUTED;
    }
    return NOTEXECUTED;
-}
-
-/*Given a word that returns TRUE from isstrcon, output the string*/
-char *getString(char const* word)
-{
-   char *str;
-   int strSize, i;
-
-   /*-2 to get rid of "" or ##*/
-   strSize = strlen(word)-2;
-
-   /*+1 for \0*/
-   str = (char *)allocate(sizeof(char)*(strSize+1), "String");
-   if (word[0]=='\"') {
-      for (i = 0; i < strSize; i++) {
-         str[i] = word[i+1];
-      }
-      str[strSize] = '\0';
-   } else {
-      for (i = 0; i < strSize; i++) {
-         str[i] = ROT(word[i+1]);
-      }
-      str[strSize] = '\0';
-   }
-   return str;
-}
-
-char ROT(char c)
-{
-   if (islower(c)) {
-      c = ROTbase(c, 'a', ROTCHAR, ALPHABET);
-   } else if (isupper(c)) {
-      c = ROTbase(c, 'A', ROTCHAR, ALPHABET);
-   } else if (isnumber(c)) {
-      c = ROTbase(c, '0', ROTNUM, NUMBASE);
-   }
-   return c;
-}
-
-/*mod (%) handled negatives in a weird way, used if statement instead.
-Formula is c = (((c-base)-rotVal)%alphabet)+base*/
-char ROTbase(char c, char base, int rotVal, int alphabet)
-{
-   c = c - base;
-   c = (c-rotVal);
-   if (c<0) {
-      c+=alphabet;
-   }
-   c = c + base;
-   return c;
-}
-
-bool isnumber(char c)
-{
-   if (c>='0' && c<='9') {
-      return TRUE;
-   }
-   return FALSE;
-}
-
-char *extractStr(nalFile* nf, vList *vl, char *name)
-{
-   char *val, *temp;
-
-   val = NULL;
-
-   if (isstrcon(name)) {
-      val = getString(name);
-   }else{
-      temp = vList_search(vl, name);
-      if (temp == NULL) {
-         variableERROR(nf, vl, "Trying to call uninitialized variable", name, nf->currWord);
-      }
-      val = allocString(temp);
-   }
-
-   return val;
-}
-
-double extractNum(nalFile* nf, vList *vl, char *name)
-{
-   double num;
-   char *val;
-
-
-   if (isnumcon(name)) {
-      if (sscanf(name,"%lf",&num)!=1) {
-         variableERROR(nf, vl, "Critical Error while reading number constant", name, nf->currWord);
-      }
-   }
-   if (isnumvar(name)) {
-      val = vList_search(vl, name);
-      if (val == NULL) {
-         variableERROR(nf, vl, "Trying to call uninitialized variable", name, nf->currWord);
-      }
-      if (sscanf(val,"%lf",&num)!=1) {
-         variableERROR(nf, vl, "Critical Error while reading number constant", name, nf->currWord);
-      }
-   }
-
-   return num;
 }
 
 /*This should successfully abort a program with multiple files opened*/
@@ -762,52 +905,16 @@ instr input(nalFile *nf, vList *vl)
 
 instr in2str(nalFile *nf, vList *vl)
 {
-   int i;
-   bool correct;
-   char syntax[IN2STRWORDS][MAXSYNTAXWORDSIZE] = {"IN2STR", "(", "STRVAR", ",", "STRVAR", ")"};
-   #ifdef INTERP
-   int vFound;
+   char syntax[MAXSYNTAXWORDS][MAXSYNTAXWORDSIZE] = {"IN2STR", "(", "STRVAR", ",", "STRVAR", ")"};
    char **varnames;
-   #endif
 
    if (strsame(nf->words[nf->currWord], syntax[0])) {
-      correct = TRUE;
-      #ifdef INTERP
-      varnames = (char**)allocate(2*sizeof(char *),"Variable names array");
-      vFound = 0;
-      #endif
       wordStep(nf,vl,1);
-      for (i = 1; i < IN2STRWORDS; i++) {
-         if (strsame(syntax[i], "STRVAR")) {
-            if (!isstrvar(nf->words[nf->currWord])) {
-               correct = FALSE;
-            }else {
-               #ifdef INTERP
-               varnames[vFound] = allocString(nf->words[nf->currWord]);
-               vFound++;
-               #endif
-            }
-         } else {
-               if (!strsame(nf->words[nf->currWord], syntax[i])) {
-               correct = FALSE;
-            }
-         }
-         if (!correct) {
-            #ifdef INTERP
-            free(varnames[0]);
-            free(varnames[1]);
-            free(varnames);
-            #endif
-            syntaxERROR(nf,vl, syntax[i-1], syntax[i], nf->currWord);
-         }
-         wordStep(nf,vl,1);
-      }
+      varnames = checkSyntax(nf, vl, syntax, IN2STRWORDS, VARSFROMIN2STR);
       #ifdef INTERP
       insertInputStrings(nf,vl,varnames);
-      free(varnames[0]);
-      free(varnames[1]);
-      free(varnames);
       #endif
+      freeArray(varnames,VARSFROMIN2STR);
       return EXECUTED;
    }
    return NOTEXECUTED;
@@ -816,86 +923,57 @@ instr in2str(nalFile *nf, vList *vl)
 /*Using scanf to place the input into an array of fixed size can cause overflow errors, please improve this.*/
 void insertInputStrings(nalFile *nf, vList *vl, char **varnames)
 {
-   char *str1, *str2;
+   char **strs;
 
+   strs = allocate(VARSFROMIN2STR*sizeof(char *),"Input Strings Array");
    /*Allocating instead of using str1[MAXINPUTSTRLEN]
    because too big for stack*/
-   str1 = allocate(MAXINPUTSTRLEN*sizeof(char),"Input String");
-   str2 = allocate(MAXINPUTSTRLEN*sizeof(char),"Input String");
+   strs[0] = allocate(MAXINPUTSTRLEN*sizeof(char),"Input String");
+   strs[1] = allocate(MAXINPUTSTRLEN*sizeof(char),"Input String");
 
-   if (scanf("%s %s", str1, str2)!=2) {
-      free(str1);
-      free(str2);
-      free(varnames[0]);
-      free(varnames[1]);
-      free(varnames);
-      indexERROR(nf, vl, "Error while receiving string input",nf->currWord);
+   if (scanf("%s %s", strs[0], strs[1])!=VARSFROMIN2STR) {
+      freeArray(strs,VARSFROMIN2STR);
+      freeArray(varnames,VARSFROMIN2STR);
+      indexERROR(nf, vl, "Error while receiving string input",nf->currWord-IN2STRWORDS);
    }
 
-   vList_insert(vl, varnames[0],str1);
-   vList_insert(vl, varnames[1],str2);
-   free(str1);
-   free(str2);
+   vList_insert(vl, varnames[0],strs[0]);
+   vList_insert(vl, varnames[1],strs[1]);
+   freeArray(strs,VARSFROMIN2STR);
 }
 
 instr innum(nalFile *nf, vList *vl)
 {
-   int i;
-   bool correct;
-   char syntax[INNUMWORDS][MAXSYNTAXWORDSIZE] = {"INNUM", "(", "NUMVAR", ")"};
-   #ifdef INTERP
-   char *name;
-   #endif
-   correct = TRUE;
+   char syntax[MAXSYNTAXWORDS][MAXSYNTAXWORDSIZE] = {"INNUM", "(", "NUMVAR", ")"};
+   char **varname;
 
    if (strsame(nf->words[nf->currWord], syntax[0])) {
       wordStep(nf,vl,1);
-      for (i = 1; i < INNUMWORDS; i++) {
-         if (strsame(syntax[i], "NUMVAR")) {
-            if (!isnumvar(nf->words[nf->currWord])) {
-               correct = FALSE;
-            } else {
-               #ifdef INTERP
-               name = allocString(nf->words[nf->currWord]);
-               #endif
-            }
-         } else {
-               if (!strsame(nf->words[nf->currWord], syntax[i])) {
-               correct = FALSE;
-            }
-         }
-         if (!correct) {
-            #ifdef INTERP
-            free(name);
-            #endif
-            syntaxERROR(nf,vl, syntax[i-1], syntax[i], nf->currWord);
-         }
-         wordStep(nf,vl,1);
-      }
+      varname = checkSyntax(nf, vl, syntax, INNUMWORDS, VARSFROMINNUM);
       #ifdef INTERP
-      insertInputNum(nf,vl,name);
-      free(name);
+      insertInputNum(nf,vl,varname);
       #endif
+      freeArray(varname,VARSFROMINNUM);
       return EXECUTED;
    }
    return NOTEXECUTED;
 }
 
 /*Using scanf to place the input into an array of fixed size can cause overflow errors, please improve this.*/
-void insertInputNum(nalFile *nf, vList *vl, char* name)
+void insertInputNum(nalFile *nf, vList *vl, char** name)
 {
    char num[MAXINPUTSTRLEN];
 
    if (scanf("%s", num)!=1) {
-      free(name);
-      indexERROR(nf, vl, "Error while receiving number input",nf->currWord);
+      freeArray(name,VARSFROMINNUM);
+      indexERROR(nf, vl, "Error while receiving number input",nf->currWord-INNUMWORDS);
    }
    if (!isnumcon(num)) {
-      free(name);
-      indexERROR(nf, vl, "Error while receiving number input",nf->currWord);
+      freeArray(name,VARSFROMINNUM);
+      indexERROR(nf, vl, "Error while receiving number input",nf->currWord-INNUMWORDS);
    }
 
-   vList_insert(vl, name ,num);
+   vList_insert(vl, name[0] ,num);
 }
 
 /*Can Add index to ERROR message by printing to a string and passing that string*/
@@ -966,42 +1044,16 @@ void print(nalFile *nf, vList *vl, char *varcon)
 
 instr nalRnd(nalFile *nf, vList *vl)
 {
-   int i;
-   bool correct;
-   char syntax[RANDWORDS][MAXSYNTAXWORDSIZE] = {"RND", "(", "NUMVAR", ")"};
-   #ifdef INTERP
-   char *name;
-   #endif
+   char syntax[MAXSYNTAXWORDS][MAXSYNTAXWORDSIZE] = {"RND", "(", "NUMVAR", ")"};
+   char **varname;
 
    if (strsame(nf->words[nf->currWord], syntax[0])) {
-      correct = TRUE;
       wordStep(nf,vl,1);
-      for (i = 1; i < RANDWORDS; i++) {
-         if (strsame(syntax[i], "NUMVAR")) {
-            if (!isnumvar(nf->words[nf->currWord])) {
-               correct = FALSE;
-            } else {
-               #ifdef INTERP
-               name = allocString(nf->words[nf->currWord]);
-               #endif
-            }
-         } else {
-            if (!strsame(nf->words[nf->currWord], syntax[i])) {
-            correct = FALSE;
-            }
-         }
-         if (!correct) {
-            #ifdef INTERP
-            free(name);
-            #endif
-            syntaxERROR(nf,vl, syntax[i-1], syntax[i], nf->currWord);
-         }
-         wordStep(nf,vl,1);
-      }
+      varname = checkSyntax(nf, vl, syntax, RANDWORDS, VARSFROMRAND);
       #ifdef INTERP
-      setRandom(vl,name);
-      free(name);
+      setRandom(vl,varname[0]);
       #endif
+      freeArray(varname,VARSFROMRAND);
       return EXECUTED;
    }
    return NOTEXECUTED;
@@ -1025,10 +1077,7 @@ instr nalIfcond(nalFile *nf, vList *vl)
 {
    cond condition;
 
-   condition = nalIfequal(nf,vl);
-   if (condition==NOTEXEC) {
-      condition = nalIfgreater(nf,vl);
-   }
+   condition = nalIf(nf,vl);
 
    if (condition != NOTEXEC) {
       if (!strsame(nf->words[nf->currWord], "{")) {
@@ -1037,9 +1086,9 @@ instr nalIfcond(nalFile *nf, vList *vl)
       wordStep(nf,vl,1);
       if (condition==EXECFAIL) {
          skipToMatchingBracket(nf,vl);
-         return EXECUTED;
+      } else {
+         instrs(nf,vl);
       }
-      instrs(nf,vl);
       return EXECUTED;
    }
    return NOTEXECUTED;
@@ -1066,93 +1115,77 @@ void skipToMatchingBracket(nalFile *nf, vList *vl)
 It should either return false or returns an error!!
 Need to check whether the variable we are checking is strvar, strcon, numvar, numcon.
 Based on that pull out the correct value and check it against the pulled out value of the other varcon IFF they are both either str or num*/
-cond nalIfequal(nalFile *nf, vList *vl)
+cond nalIf(nalFile *nf, vList *vl)
 {
-   int i;
-   bool correct;
-   char syntax[IN2STRWORDS][MAXSYNTAXWORDSIZE] = {"IFEQUAL", "(", "VARCON", ",", "VARCON", ")"};
+   char syntax[MAXSYNTAXWORDS][MAXSYNTAXWORDSIZE] = {"", "(", "VARCON", ",", "VARCON", ")"};
    cond condition;
-   #ifdef INTERP
    char **vNames;
-   int vFound;
-   #endif
 
    condition = NOTEXEC;
 
-   if (strsame(nf->words[nf->currWord], syntax[0])) {
-      correct = TRUE;
+   if (condCalled(nf->words[nf->currWord])) {
+      strcpy(syntax[0],nf->words[nf->currWord]);
       condition = EXECPASS;
-      #ifdef INTERP
-      vNames = (char**)allocate(2*sizeof(char *),"Values array");
-      vFound = 0;
-      #endif
       wordStep(nf,vl,1);
-      for (i = 1; i < IN2STRWORDS; i++) {
-         if (strsame(syntax[i], "VARCON")) {
-            if (!isvarcon(nf->words[nf->currWord])) {
-               correct = FALSE;
-            }else{
-               #ifdef INTERP
-               vNames[vFound] = allocString(nf->words[nf->currWord]);
-               vFound++;
-               #endif
-            }
-         } else {
-               if (!strsame(nf->words[nf->currWord], syntax[i])) {
-               correct = FALSE;
-            }
-         }
-         if (!correct) {
-            #ifdef INTERP
-            free(vNames[0]);
-            free(vNames[1]);
-            free(vNames);
-            #endif
-            syntaxERROR(nf,vl, syntax[i-1], syntax[i], nf->currWord);
-         }
-         wordStep(nf,vl,1);
-      }
+      vNames = checkSyntax(nf, vl, syntax, CONDWORDS, VARSFROMCOND);
       #ifdef INTERP
-      if (!condEqual(nf,vl,vNames[0],vNames[1])) {
+      if (!condCheck(nf,vl,syntax[0],vNames)) {
          condition =  EXECFAIL;
       }
-      free(vNames[0]);
-      free(vNames[1]);
-      free(vNames);
       #endif
+      freeArray(vNames, VARSFROMCOND);
    }
    return condition;
 }
 
-bool condEqual(nalFile *nf, vList *vl, char *varcon1, char *varcon2)
+/*"Conditional Called"*/
+bool condCalled(char const *word)
 {
-   comp comparison;
-
-   comparison = NOCOMP;
-   if (isstr(varcon1) && isstr(varcon2)) {
-      comparison = compStrings(nf, vl, varcon1, varcon2);
-   }
-   if (isnum(varcon1) && isnum(varcon2)) {
-      comparison = compNums(nf, vl, varcon1, varcon2);
-   }
-
-   if (comparison == NOCOMP) {
-      indexERROR(nf,vl,"Comparing two VARCONs of uncomparable types",nf->currWord);
-   }
-
-   if (comparison==EQUAL) {
+   if (strsame(word,"IFGREATER")||strsame(word,"IFEQUAL")) {
       return TRUE;
    }
    return FALSE;
 }
 
-comp compStrings(nalFile *nf, vList *vl, char *str1, char *str2)
+bool condCheck(nalFile *nf, vList *vl, char *condition, char **varcons)
+{
+   comp comparison;
+
+   comparison = NOCOMP;
+   if (isstr(varcons[0]) && isstr(varcons[1])) {
+      comparison = compStrings(nf, vl, varcons);
+   }
+   if (isnum(varcons[0]) && isnum(varcons[1])) {
+      comparison = compNums(nf, vl, varcons);
+   }
+
+   if (comparison == NOCOMP) {
+      freeArray(varcons,VARSFROMCOND);
+      indexERROR(nf,vl,"Comparing two VARCONs of uncomparable types",nf->currWord-CONDWORDS);
+   }
+
+   if (comparison==EQUAL && strsame(condition,"IFEQUAL")) {
+      return TRUE;
+   }
+   if (comparison==GREATER && strsame(condition,"IFGREATER")) {
+      return TRUE;
+   }
+   return FALSE;
+}
+
+comp compStrings(nalFile *nf, vList *vl, char **strs)
 {
    char *val1, *val2;
    int result;
 
-   val1 = extractStr(nf,vl,str1);
-   val2 = extractStr(nf,vl,str2);
+   val1 = extractStr(vl,strs[0]);
+   val2 = extractStr(vl,strs[1]);
+   if (val1 == NULL || val2 == NULL) {
+      free(val1);
+      free(val2);
+      freeArray(strs,VARSFROMCOND);
+      indexERROR(nf, vl, "Trying to call uninitialized variable", nf->currWord-CONDWORDS);
+   }
 
    result = strcmp(val1,val2);
 
@@ -1168,14 +1201,34 @@ comp compStrings(nalFile *nf, vList *vl, char *str1, char *str2)
    return SMALLER;
 }
 
-comp compNums(nalFile *nf, vList *vl, char *num1, char *num2)
+comp compNums(nalFile *nf, vList *vl, char **nums)
 {
    double val1, val2;
+   bool error;
 
-   val1 = extractNum(nf,vl,num1);
-   val2 = extractNum(nf,vl,num2);
+   error = FALSE;
+
+   val1 = extractNum(vl,nums[0],&error);
+   if (error) {
+      freeArray(nums,VARSFROMCOND);
+      handleExtractNumError(nf,vl,val1);
+   }
+   val2 = extractNum(vl,nums[1],&error);
+   if (error) {
+      freeArray(nums,VARSFROMCOND);
+      handleExtractNumError(nf,vl,val2);
+   }
 
    return compDoubles(val1,val2);
+}
+
+void handleExtractNumError(nalFile *nf, vList *vl, double errortype)
+{
+   if (compDoubles(errortype,READERROR)==EQUAL) {
+      indexERROR(nf, vl, "Critical Error while reading number constant", nf->currWord-CONDWORDS);
+   }else{
+      indexERROR(nf, vl, "Trying to call uninitialized variable", nf->currWord-CONDWORDS);
+   }
 }
 
 comp compDoubles(double n1, double n2)
@@ -1191,86 +1244,6 @@ comp compDoubles(double n1, double n2)
       return SMALLER;
    }
    return EQUAL;
-}
-
-cond nalIfgreater(nalFile *nf, vList *vl)
-{
-   int i;
-   bool correct;
-   char syntax[IN2STRWORDS][MAXSYNTAXWORDSIZE] = {"IFGREATER", "(", "VARCON", ",", "VARCON", ")"};
-   cond condition;
-   #ifdef INTERP
-   char **vNames;
-   int vFound;
-   #endif
-
-   condition = NOTEXEC;
-
-   if (strsame(nf->words[nf->currWord], syntax[0])) {
-      correct = TRUE;
-      condition = EXECPASS;
-      #ifdef INTERP
-      vNames = (char**)allocate(2*sizeof(char *),"Values array");
-      vFound = 0;
-      #endif
-      wordStep(nf,vl,1);
-      for (i = 1; i < IN2STRWORDS; i++) {
-         if (strsame(syntax[i], "VARCON")) {
-            if (!isvarcon(nf->words[nf->currWord])) {
-               correct = FALSE;
-            } else {
-               #ifdef INTERP
-               vNames[vFound] = allocString(nf->words[nf->currWord]);
-               vFound++;
-               #endif
-            }
-         } else {
-               if (!strsame(nf->words[nf->currWord], syntax[i])) {
-               correct = FALSE;
-            }
-         }
-         if (!correct) {
-            #ifdef INTERP
-            free(vNames[0]);
-            free(vNames[1]);
-            free(vNames);
-            #endif
-            syntaxERROR(nf,vl, syntax[i-1], syntax[i], nf->currWord);
-         }
-         wordStep(nf,vl,1);
-      }
-      #ifdef INTERP
-      if (!condGreater(nf,vl,vNames[0],vNames[1])) {
-         condition =  EXECFAIL;
-      }
-      free(vNames[0]);
-      free(vNames[1]);
-      free(vNames);
-      #endif
-   }
-   return condition;
-}
-
-bool condGreater(nalFile *nf, vList *vl, char *varcon1, char *varcon2)
-{
-   comp comparison;
-
-   comparison = NOCOMP;
-   if (isstr(varcon1) && isstr(varcon2)) {
-      comparison = compStrings(nf, vl, varcon1, varcon2);
-   }
-   if (isnum(varcon1) && isnum(varcon2)) {
-      comparison = compNums(nf, vl, varcon1, varcon2);
-   }
-
-   if (comparison == NOCOMP) {
-      indexERROR(nf,vl,"Comparing two VARCONs of uncomparable types",nf->currWord);
-   }
-
-   if (comparison==GREATER) {
-      return TRUE;
-   }
-   return FALSE;
 }
 
 instr nalInc(nalFile *nf, vList *vl)
@@ -1323,7 +1296,7 @@ void incVar(nalFile *nf, vList *vl, char *name)
 
    val = vList_search(vl, name);
    if (sscanf(val,"%lf",&num)!=1) {
-      variableERROR(nf,vl,"Critical Error while reading stored number variable",name,nf->currWord);
+      variableERROR(nf,vl,"Critical Error while reading stored number variable",name,nf->currWord-INCWORDS);
    }
    num++;
    newVal = (char *)allocate(sizeof(char)*MAXDOUBLESIZE,"Value of increased Variable");
@@ -1495,145 +1468,108 @@ bool isnum(char const *word)
    return FALSE;
 }
 
-void nalERROR(nalFile *nf, vList *vl, char* const msg)
+/*Given a word that returns TRUE from isstrcon, output the string
+(Applies ROT18 if the string requires it)*/
+char *getString(char const* word)
 {
-   char *errorLine;
-   int errorLineLength;
+   char *str;
+   int strSize, i;
 
-   errorLineLength = NALERRORLENGTH;
-   errorLineLength += strlen(msg);
-   errorLineLength += strlen(nf->name);
+   /*-2 to get rid of "" or ##*/
+   strSize = strlen(word)-2;
 
-   errorLine = (char *)allocate(errorLineLength*sizeof(char),"Error Line");
-
-   sprintf(errorLine, "ERROR MESSAGE: %s\nError occurred in file \"%s\"\nTERMINATING . . .\n", msg, nf->name);
-
-   vList_free(&vl);
-   terminateAllNalFiles(nf);
-   fprintf(stderr, "%s", errorLine);
-   free(errorLine);
-   exit(EXIT_FAILURE);
+   /*+1 for \0*/
+   str = (char *)allocate(sizeof(char)*(strSize+1), "String");
+   if (word[0]=='\"') {
+      for (i = 0; i < strSize; i++) {
+         str[i] = word[i+1];
+      }
+      str[strSize] = '\0';
+   } else {
+      for (i = 0; i < strSize; i++) {
+         str[i] = ROT(word[i+1]);
+      }
+      str[strSize] = '\0';
+   }
+   return str;
 }
 
-void indexERROR(nalFile *nf, vList *vl, char* const msg, int index)
+/*Applies ROT18 to c and returns it*/
+char ROT(char c)
 {
-   char *errorLine;
-   int errorLineLength;
-
-   errorLineLength = INDEXERRORLENGTH;
-   errorLineLength += strlen(msg);
-   errorLineLength += strlen(nf->name);
-
-   errorLine = (char *)allocate(errorLineLength*sizeof(char),"Error Line");
-
-   sprintf(errorLine, "ERROR MESSAGE: %s\nError occurred at index %d of file \"%s\"\nTERMINATING . . .\n", msg, index,nf->name);
-
-   vList_free(&vl);
-   terminateAllNalFiles(nf);
-   fprintf(stderr, "%s", errorLine);
-   free(errorLine);
-   exit(EXIT_FAILURE);
+   if (islower(c)) {
+      c = ROTbase(c, 'a', ROTCHAR, ALPHABET);
+   } else if (isupper(c)) {
+      c = ROTbase(c, 'A', ROTCHAR, ALPHABET);
+   } else if (isnumber(c)) {
+      c = ROTbase(c, '0', ROTNUM, NUMBASE);
+   }
+   return c;
 }
 
-void variableERROR(nalFile *nf, vList *vl, char const *msg, char* const name, int index)
+/*mod (%) handled negatives in a weird way, used if statement instead.
+Formula is c = (((c-base)-rotVal)%alphabet)+base*/
+char ROTbase(char c, char base, int rotVal, int alphabet)
 {
-   char *errorLine;
-   int errorLineLength;
-
-   errorLineLength = VARIABLEERRORLENGTH;
-   errorLineLength += strlen(msg);
-   errorLineLength += strlen(name);
-   errorLineLength += strlen(nf->name);
-
-   errorLine = (char *)allocate(errorLineLength*sizeof(char),"Error Line");
-
-   sprintf(errorLine, "ERROR MESSAGE: %s\nAbout Variable %s in file \"%s\" around index %d\nTERMINATING . . .\n",msg,name,nf->name,index);
-
-   vList_free(&vl);
-   terminateAllNalFiles(nf);
-   fprintf(stderr, "%s", errorLine);
-   free(errorLine);
-   exit(EXIT_FAILURE);
+   c = c - base;
+   c = (c-rotVal);
+   if (c<0) {
+      c+=alphabet;
+   }
+   c = c + base;
+   return c;
 }
 
-void syntaxERROR(nalFile *nf, vList *vl,char const *prevWord, char const *expWord,  int index)
+bool isnumber(char c)
 {
-   char *errorLine;
-   int errorLineLength;
-
-   errorLineLength = SYNTAXERRORLENGTH;
-   errorLineLength += strlen(expWord);
-   errorLineLength += strlen(prevWord);
-   errorLineLength += strlen(nf->name);
-
-   errorLine = (char *)allocate(errorLineLength*sizeof(char),"Error Line");
-
-   sprintf(errorLine, "Expected %s after %s at index %d in file \"%s\"\n", expWord, prevWord, index,nf->name);
-
-   vList_free(&vl);
-   terminateAllNalFiles(nf);
-   fprintf(stderr, "%s", errorLine);
-   free(errorLine);
-   exit(EXIT_FAILURE);
+   if (c>='0' && c<='9') {
+      return TRUE;
+   }
+   return FALSE;
 }
 
-void tokenizeERROR(nalFile *nf, vList *vl, char const *file, char const *msg)
+char *extractStr(vList *vl, char *name)
 {
-   char *errorLine;
-   int errorLineLength;
+   char *val, *temp;
 
-   errorLineLength = TOKENIZEERRORLENGTH;
-   errorLineLength += strlen(file);
-   errorLineLength += strlen(msg);
+   val = NULL;
 
-   errorLine = (char *)allocate(errorLineLength*sizeof(char),"Error Line");
+   if (isstrcon(name)) {
+      val = getString(name);
+   }else{
+      temp = vList_search(vl, name);
+      if (temp == NULL) {
+         return NULL;
 
-   sprintf(errorLine, "ERROR MESSAGE: %s\nError occurred while tokenizing file: \"%s\"\nTERMINATING . . .\n", msg, file);
-
-   fprintf(stderr, "%s", errorLine);
-   vList_free(&vl);
-   terminateAllNalFiles(nf);
-   free(errorLine);
-   exit(EXIT_FAILURE);
-}
-
-void *allocate(int size, char* const msg)
-{
-   void *p;
-
-   p = malloc(size);
-   if (p == NULL) {
-      fprintf(stderr,"Couldn't allocate space for %s, Terminating ...\n", msg);
-      exit(EXIT_FAILURE);
+      }
+      val = allocString(temp);
    }
 
-   return p;
+   return val;
 }
 
-void *callocate(int size1, int size2, char* const msg)
+double extractNum(vList *vl, char *name, bool *error)
 {
-   void *p;
+   double num;
+   char *val;
 
-   p = calloc(size1,size2);
-   if (p == NULL) {
-      fprintf(stderr,"Couldn't allocate space for %s, Terminating ...\n", msg);
-      exit(EXIT_FAILURE);
+   if (isnumcon(name)) {
+      if (sscanf(name,"%lf",&num)!=1) {
+         *error = TRUE;
+         return READERROR;
+      }
+   }
+   if (isnumvar(name)) {
+      val = vList_search(vl, name);
+      if (val == NULL) {
+         *error = TRUE;
+         return INITERROR;
+      }
+      if (sscanf(val,"%lf",&num)!=1) {
+         *error = TRUE;
+         return READERROR;
+      }
    }
 
-   return p;
-}
-
-/*Given a string, it allocates some new space to store it and copies it, returns a pointer to the new space*/
-char *allocString(const char *str)
-{
-   char *newStr;
-
-   if (str == NULL) {
-      return NULL;
-   }
-
-   newStr = (char *)allocate(sizeof(char)*(strlen(str)+1),"String");
-   strcpy(newStr,str);
-
-   return newStr;
+   return num;
 }
