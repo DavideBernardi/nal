@@ -1,4 +1,6 @@
 /*To do:
+NOTE: if a double is set as the index after <JUMP>, only the integer part is considered (not closest integer approximation, no automatic abourt)
+
 ADD UNIT TESTING FOR:
       isnumber()
       extractStr()
@@ -22,29 +24,15 @@ GO OVER PREVIOUS TESTING AS SOME FUNCTIONS HAVE CHANGED A LOT
 TEST ERRORS:
 ALL OF THESE ERRORS NEED TO WORK PROPERLY BOTH WHEN ONLY OPENING THE
 FILE WITH THE ERROR AND ALSO WHEN THE FILE IS OPENED INSIDE ANOTHER FILE
-   error in getFile() - open file with wrong name
-   error in getWordSizes - open empty file
-   error in wordLength - open file with unmatched " or #
-   error in wordStep - open file with no closing }
-   error in program() - open file with no starting {
-   error in instruct() - open file with unknown syntax rule
+
+
+
    error in extractStr/Num() - open file which tries to use uninitialized
                                variable (both string and num)
-   error in insertInputString - really hard to trigger this error
-   error in insertInputNum - insert something that isn't a num
-   error in jump - have file with JUMP followed by a number that
-                   isn't a valid index
-   error in print - print uninitialized variable
    condEqual - compare two varcons of uncomparable type
    condGreater - same as above
-   setVariable - set a variable to a wrong type
 
 ISSUES:
-   When opening an empty file, the string containing the file name doesn't get
-   freed before execution is stopped.
-
-   getFile() should not just terminate, should also close all other opened nal
-   files if used during execution
 
    getString() should be able to deal with \n, \0 type of strings as well
    (copy char by char, if getc == \, do something based on next getc)
@@ -196,7 +184,7 @@ void freeList(intList **nf);
 
 /*Functions used to play with the nalFile structures*/
 nalFile *initNalFile(void);
-void setupNalFile(nalFile *nf, vList *vl, char const file[]);
+void setupNalFile(nalFile *nf, vList *vl);
 void terminateNalFile(nalFile **nf);
 void terminateAllNalFiles(nalFile *nf);
 void wordStep(nalFile *nf, vList *vl, int s);

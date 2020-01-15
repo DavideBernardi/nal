@@ -1,0 +1,13 @@
+{
+
+   %C = 0
+   RND ( %A )
+   PRINT %A
+   INNUM ( %B )
+   INC ( %C )
+   IFGREATER ( $N , "Hi" ) {
+      PRITN #Who knows what this says#
+   }
+   JUMP 4
+
+}

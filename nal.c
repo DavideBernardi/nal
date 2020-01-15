@@ -13,7 +13,8 @@ int main(int argc, char const *argv[])
    checkInput(argc, argv);
    nf = initNalFile();
    vl = vList_init();
-   setupNalFile(nf, vl, argv[1]);
+   nf->name = allocString(argv[1]);
+   setupNalFile(nf, vl);
    program(nf, vl);
    #ifndef INTERP
    printf("Parsed OK\n");
@@ -57,7 +58,7 @@ void testTokenization(void)
    char testWord[MAXWORDSIZE];
    nalFile *testNal;
    vList *testList;
-   int i;
+   int i, strCheck;
    char wordsInTest1[WORDSINTEST1][MAXWORDSIZE] = {"{", "PRINT", "\"Hello World! From test1\"", "}"};
 
    /*Testing multiWordString*/
@@ -105,7 +106,8 @@ void testTokenization(void)
    /*IMPORTANT IF A TOKENIZED WORD IS LONGER THAN 1000 CHARS, THIS CODE WILL BREAK*/
    for (i = 0; i < WORDSINTEST1; i++) {
       getWord(NULL, NULL, testWord, testFile);
-      assert(strsame(testWord,wordsInTest1[i]));
+      strCheck = strsame(testWord,wordsInTest1[i]);
+      assert(strCheck);
    }
    fclose(testFile);
 
@@ -117,14 +119,16 @@ void testTokenization(void)
    fclose(testFile);
    assert(testNal->totWords == WORDSINTEST1);
    for (i = 0; i < WORDSINTEST1; i++) {
-      assert(strsame(testNal->words[i],wordsInTest1[i]));
+      strCheck = strsame(testNal->words[i],wordsInTest1[i]);
+      assert(strCheck);
    }
 
    /*Testing wordStep*/
    testList = vList_init();
    for (i = 1; i < WORDSINTEST1; i++) {
       wordStep(testNal,testList, 1);
-      assert(strsame(testNal->words[testNal->currWord],wordsInTest1[i]));
+      strCheck = strsame(testNal->words[testNal->currWord],wordsInTest1[i]);
+      assert(strCheck);
    }
    vList_free(&testList);
    terminateNalFile(&testNal);
@@ -263,8 +267,11 @@ void testROT(void)
 void testGetString(char const* word, char const* realStr)
 {
    char *str;
+   int strCheck;
+
    str = getString(word);
-   assert(strsame(str,realStr));
+   strCheck = strsame(str,realStr);
+   assert(strCheck);
    free(str);
 }
 
@@ -475,13 +482,12 @@ nalFile *initNalFile(void)
    return nf;
 }
 
-void setupNalFile(nalFile *nf, vList *vl, char const file[])
+void setupNalFile(nalFile *nf, vList *vl)
 {
    FILE *fp;
    intList *wordLengths;
 
-   nf->name = allocString(file);
-   fp = getFile(nf,vl,file);
+   fp = getFile(nf,vl,nf->name);
    wordLengths = getWordSizes(nf,vl,fp);
    tokenizeFile(nf, vl, fp, wordLengths);
    fclose(fp);
@@ -526,14 +532,14 @@ void wordStep(nalFile *nf, vList *vl, int s)
 {
    nf->currWord += s;
    if (nf->currWord >= nf->totWords) {
-      indexERROR(nf, vl,"Word Index Out of Bounds",nf->currWord);
+      indexERROR(nf, vl,"Word Index Out of Bounds (Maybe missing a closing '}'?)",nf->currWord);
    }
 }
 
 void program(nalFile *nf, vList *vl)
 {
    if (!strsame(nf->words[nf->currWord], "{")) {
-      nalERROR(nf, vl,"No starting \'{\'\n");
+      nalERROR(nf, vl,"No starting \'{\'");
    }
    wordStep(nf,vl,1);
    instrs(nf, vl);
@@ -589,7 +595,6 @@ instr file(nalFile *nf, vList *vl)
 {
    #ifdef INTERP
    nalFile *newFile;
-   char *fileName;
    #endif
 
    if (strsame(nf->words[nf->currWord], "FILE")) {
@@ -598,12 +603,11 @@ instr file(nalFile *nf, vList *vl)
          syntaxERROR(nf,vl, "FILE", "STRCON", nf->currWord);
       }
       #ifdef INTERP
-      fileName = getString(nf->words[nf->currWord]);
       newFile = initNalFile();
+      newFile->name = getString(nf->words[nf->currWord]);
       /*Keep track of previous file in case of ABORT call*/
       newFile->prev = nf;
-      setupNalFile(newFile, vl, fileName);
-      free(fileName);
+      setupNalFile(newFile, vl);
       program(newFile,vl);
       terminateNalFile(&newFile);
       #endif
@@ -1341,6 +1345,9 @@ void setVariable(nalFile *nf, vList *vl)
    } else if (isnumcon(valstr)) {
       val = allocString(valstr);
    }
+   if (val==NULL) {
+      variableERROR(nf, vl, "Setting Variable to something invalid (probably to an uninitialized variable)", name, nf->currWord);
+   }
    vList_insert(vl,name,val);
    free(val);
 }
@@ -1603,6 +1610,10 @@ void *callocate(int size1, int size2, char* const msg)
 char *allocString(const char *str)
 {
    char *newStr;
+
+   if (str == NULL) {
+      return NULL;
+   }
 
    newStr = (char *)allocate(sizeof(char)*(strlen(str)+1),"String");
    strcpy(newStr,str);

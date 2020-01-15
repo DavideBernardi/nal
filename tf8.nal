@@ -1,0 +1,12 @@
+{
+
+   %C = 0
+   RND ( %A )
+   PRINT %N
+   INC ( %C )
+   IFGREATER ( %C , 9 ) {
+      PRITN #Who knows what this says#
+   }
+   JUMP 4
+
+}
