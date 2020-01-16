@@ -1248,61 +1248,37 @@ comp compDoubles(double n1, double n2)
 
 instr nalInc(nalFile *nf, vList *vl)
 {
-   int i;
-   bool correct;
-   char syntax[INCWORDS][MAXSYNTAXWORDSIZE] = {"INC", "(", "NUMVAR", ")"};
-   #ifdef INTERP
-   char *name = NULL;
-   #endif
+   char syntax[MAXSYNTAXWORDS][MAXSYNTAXWORDSIZE] = {"INC", "(", "NUMVAR", ")"};
+   char **varname = NULL;
+
 
    if (strsame(nf->words[nf->currWord], syntax[0])) {
-      correct = TRUE;
       wordStep(nf,vl,1);
-      for (i = 1; i < INCWORDS; i++) {
-         if (strsame(syntax[i], "NUMVAR")) {
-            if (!isnumvar(nf->words[nf->currWord])) {
-               correct = FALSE;
-            } else {
-               #ifdef INTERP
-               name = allocString(nf->words[nf->currWord]);
-               #endif
-            }
-         } else {
-            if (!strsame(nf->words[nf->currWord], syntax[i])) {
-            correct = FALSE;
-            }
-         }
-         if (!correct) {
-            #ifdef INTERP
-            free(name);
-            #endif
-            syntaxERROR(nf,vl, syntax[i-1], syntax[i], nf->currWord);
-         }
-         wordStep(nf,vl,1);
-      }
+      varname = checkSyntax(nf, vl, syntax, INCWORDS, VARSFROMINC);
       #ifdef INTERP
-      incVar(nf, vl,name);
-      free(name);
+      incVar(nf, vl,varname);
       #endif
+      freeArray(varname,VARSFROMINC);
       return EXECUTED;
    }
    return NOTEXECUTED;
 }
 
-void incVar(nalFile *nf, vList *vl, char *name)
+void incVar(nalFile *nf, vList *vl, char **varname)
 {
    char *val, *newVal;
    double num;
 
-   val = vList_search(vl, name);
+   val = vList_search(vl, varname[0]);
    if (sscanf(val,"%lf",&num)!=1) {
-      variableERROR(nf,vl,"Critical Error while reading stored number variable",name,nf->currWord-INCWORDS);
+      freeArray(varname, VARSFROMINC);
+      indexERROR(nf,vl,"Critical Error while reading stored number variable",nf->currWord-INCWORDS);
    }
    num++;
    newVal = (char *)allocate(sizeof(char)*MAXDOUBLESIZE,"Value of increased Variable");
 
    sprintf(newVal,"%lf",num);
-   vList_insert(vl, name, newVal);
+   vList_insert(vl, varname[0], newVal);
    free(newVal);
 }
 

@@ -74,7 +74,7 @@ GO OVER PREVIOUS TESTING AS SOME FUNCTIONS HAVE CHANGED A LOT
       properly allocated memory.*/
 #define MAXWORDSIZE 10000
 
-/*Size of words in a syntax rule i.e. "JUMP", "IN2STR", "VARCON", ...*/
+/*Maximum character size of words in a syntax rule i.e. "JUMP", "IN2STR", "VARCON", ...*/
 #define MAXSYNTAXWORDSIZE 100
 
 /*Used when converting a double to a string*/
@@ -86,10 +86,10 @@ GO OVER PREVIOUS TESTING AS SOME FUNCTIONS HAVE CHANGED A LOT
 /*Base lengths of each of the error messages (these are then resized
 based on the individual message so no risk of overlow)*/
 #define TOKENIZEERRORLENGTH 100
-#define SYNTAXERRORLENGTH 100
-#define INDEXERRORLENGTH 150
 #define NALERRORLENGTH 100
-#define VARIABLEERRORLENGTH 100
+#define INDEXERRORLENGTH 150
+#define SYNTAXERRORLENGTH 150
+#define VARIABLEERRORLENGTH 150
 
 /*Number of words that are part of each of these rule's syntax
 i.e. <IN2STR> = "IN2STR", "(", "STRVAR", ",", "STRVAR", ")"
@@ -109,6 +109,7 @@ i.e. <IN2STR> uses 2 STRVARs*/
 #define VARSFROMINNUM 1
 #define VARSFROMRAND 1
 #define VARSFROMCOND 2
+#define VARSFROMINC 1
 
 /*Used in ROT()*/
 #define ROTCHAR 13
@@ -270,7 +271,7 @@ void setRandom(vList *vl, char *name);
 void setVariable(nalFile *nf, vList *vl);
 bool validSet(char *name, char *val);
 /*INC*/
-void incVar(nalFile *nf, vList *vl, char *name);
+void incVar(nalFile *nf, vList *vl, char **varname);
 /*IFCOND*/
 void skipToMatchingBracket(nalFile *nf, vList *vl);
 comp compStrings(nalFile *nf, vList *vl, char **strs);
