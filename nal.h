@@ -20,6 +20,7 @@ Just real confusing
 is written such that if it is parsing the last word and the last word is "}",
 it will keep reparsing it until it closes all open parenthesis and then exit
 normally.)
+I suspect the biggest issue is when jumping from outside a Conditional to Inside one: the program will end at the end of the conditional 
 
 
 POSSIBLE TESTING STRATEGY:
