@@ -1,29 +1,29 @@
 /*
 NOTES:
-If a double is set as the index after <JUMP>, only the integer part
-is considered (not closest integer approximation, no automatic abort)
-
-When taking in input from the user, the string has a maximum size of 1000000
-(Which then gets reallocated appropriately), however if the input string is
-larger than that, overflow happens with no error messages.
-
-
-ISSUES:
-
-The vList is trash, make it a sorted list or a hash table for god's sake
+   1) Every possible ERROR should be handled correctly
+   (with approriate error messages and frees).
+   Only exception is malloc and calloc errors (give a message but does not free
+   everything), and a weird <JUMP> case:
+   When jumping from outside a Conditional to Inside one, the program will
+   end at the end of the conditional rather than at the end of the program
+   (no error message, but everything gets freed).
 
 
-Not sure what happens when using JUMP inside a (or multiple) conditional(s).
-Or jumping from outside a conditonal to inside.
-Just real confusing
-(Note: At the moment my code miraculously handles this okay because instrs()
-is written such that if it is parsing the last word and the last word is "}",
-it will keep reparsing it until it closes all open parenthesis and then exit
-normally.)
-I suspect the biggest issue is when jumping from outside a Conditional to Inside one: the program will end at the end of the conditional 
+   2) If a double is set as the index after <JUMP>, only the integer part
+   is considered (not closest integer approximation, no automatic abort).
+   i.e. JUMP 9.312 would jump to word 9.
 
 
-POSSIBLE TESTING STRATEGY:
+   3) When taking in input from the user, the string has a maximum size of
+   1000000 (Which then gets reallocated appropriately),
+   however if the input string is larger than that,
+   overflow happens with no error messages.
+
+
+TESTING STRATEGY:
+
+      Have the "interpeting" part of each instruction boxed into a function, that way we can simply unit test that function.
+
       Have a different #ifdef INSTRUCT #endif for
       each instruction, when testing the instruction just compile with only
       -DINSTRUCT, so the rest of the file is parsed except for the defined
@@ -32,28 +32,16 @@ POSSIBLE TESTING STRATEGY:
 
 
 POSSIBLE IMPROVEMENTS:
+   Maths
+   Arrays
+   Functions
 
 ADD UNIT TESTING FOR:
-      setupNalFile()
-      terminateAllNalFiles()
-      extractStr()
-      extractNum()
       insertInputStrings()
       insertInputNum()
       print()
-      setRandom()
-      skipToMatchingBracket()
-      condCalled()
-      condCheck()
-      compStrings()
-      compNums()
-      compDoubles()
-      incVar()
       setVariable()
-      validSet()
-      allocString()
-
-GO OVER PREVIOUS TESTING AS SOME FUNCTIONS HAVE CHANGED A LOT
+      checkSyntax()
 */
 
 #include <stdio.h>
@@ -66,8 +54,11 @@ GO OVER PREVIOUS TESTING AS SOME FUNCTIONS HAVE CHANGED A LOT
 #include "vList.h"
 
 /*Used in testing*/
+#define TESTFILE1 "test1.nal"
 #define WORDSINTEST1 4
 #define TESTWORDSIZE 1000
+#define INCTESTSTRSIZE 10000
+#define TESTBRACKETSFILE "labne.nal"
 
 /*Maximum size of a single %s pulled from the file.
       Note: This is only used when initially reading in each
@@ -75,7 +66,8 @@ GO OVER PREVIOUS TESTING AS SOME FUNCTIONS HAVE CHANGED A LOT
       properly allocated memory.*/
 #define MAXWORDSIZE 10000
 
-/*Maximum character size of words in a syntax rule i.e. "JUMP", "IN2STR", "VARCON", ...*/
+/*Maximum character size of words in a syntax rule i.e. "JUMP", "IN2STR",
+"VARCON", ...*/
 #define MAXSYNTAXWORDSIZE 100
 
 /*Used when converting a double to a string*/
@@ -143,10 +135,8 @@ typedef enum {NOTEXECUTED, EXECUTED} instr;
 typedef enum {NUM, STR, ROTSTR} vartype;
 
 /*These are only used for <IFCOND>*/
-typedef enum {NOTEXEC, EXECPASS, EXECFAIL} cond; /*Similar to instr*/
+typedef enum {NOTEXEC, EXECPASS, EXECFAIL} cond; /*Similar to typedef instr*/
 typedef enum {NOCOMP, SMALLER, EQUAL, GREATER} comp;
-
-
 
 typedef struct nalFile{
    char **words;
@@ -166,117 +156,130 @@ typedef struct intList{
    int size;
 }intList;
 
-/*NOTE: In a lot of these functions, nl and vl are only passed so if an ERROR
+/*NOTE: In a lot of these functions, the nal File(s) nl and the
+variable list vl are only passed so if an ERROR
 occurs they can be appropriately freed*/
 
 /*Check argv*/
-void checkInput(int argc, char const *argv[]);
+   void checkInput(int argc, char const *argv[]);
 
 /*Testing*/
-void test(void);
-void testTokenization(void);
-void testParsingFunctions(void);
-void testInterpFunctions(void);
-void testGetString(char const* word, char const* realStr);
-void testROT(void);
-
-/*ERROR functions*/
-void tokenizeERROR(nalFile *nf, vList *vl, char const *file, char const *msg);
-void nalERROR(nalFile *nf, vList *vl, char* const msg);
-void indexERROR(nalFile *nf, vList *vl, char* const msg, int index);
-void syntaxERROR(nalFile *nf, vList *vl, char const *prevWord, char const *expWord,  int index);
-void variableERROR(nalFile *nf, vList *vl, char const *msg,char* const name, int index);
-/*extractNum is particularly hard to abort properly if an error happens, so I made a function that does that*/
-void handleExtractNumError(nalFile *nf, vList *vl, double errortype);
-
-/*These are malloc and calloc but also give errors if they fail to allocate*/
-void *allocate(int size, char* const msg);
-void *callocate(int size1, int size2, char* const msg);
-/*This function takes in a string and copies it into a correctly sized pointer,
-it then returns that pointer (which will need freeing at some point)*/
-char *allocString(const char *str);
+   void test(void);
+   void testTokenization(void);
+   void testParsingFunctions(void);
+   void testInterpFunctions(void);
+   void testROT(void);
+   void testGetString(char const* word, char const* realStr);
+   void testIfCond(void);
+   void testSet(void);
 
 /*These are used to read in and tokenize a file into a nalFile*/
-FILE *getFile(nalFile *nf, vList *vl, char const file[]);
-intList *getWordSizes(nalFile *nf, vList *vl, FILE *fp);
-int wordLength(nalFile *nf, vList *vl, char const *currWord, FILE *fp, intList *wordLens);
-void tokenizeFile(nalFile *nf, vList *vl, FILE *fp, intList *wordLengths);
-void getWord(nalFile *nf, vList *vl, char *word, FILE* fp);
-void strAppend(char *word, char c);
-bool multiWordString(char const *word);
-/*These are only used for a Linked List used within getWordSizes*/
-intNode *allocateNode(int i);
-void freeList(intList **nf);
+   FILE *getFile(nalFile *nf, vList *vl, char const file[]);
+   intList *getWordSizes(nalFile *nf, vList *vl, FILE *fp);
+   int wordLength(nalFile *nf, vList *vl, char const *currWord,
+      FILE *fp, intList *wordLens);
+   void tokenizeFile(nalFile *nf, vList *vl, FILE *fp, intList *wordLengths);
+   void getWord(nalFile *nf, vList *vl, char *word, FILE* fp);
+   void strAppend(char *word, char c);
+   bool multiWordString(char const *word);
+   /*These are only used for a Linked List used within getWordSizes*/
+      intNode *allocateNode(int i);
+      void freeList(intList **nf);
 
-/*Functions used to play with the nalFile structures*/
-nalFile *initNalFile(void);
-void setupNalFile(nalFile *nf, vList *vl);
-void terminateNalFile(nalFile **nf);
-void terminateAllNalFiles(nalFile *nf);
-void wordStep(nalFile *nf, vList *vl, int s);
+/*Functions used to play with the nalFile structure*/
+   nalFile *initNalFile(void);
+   void setupNalFile(nalFile *nf, vList *vl);
+   void terminateNalFile(nalFile **nf);
+   void terminateAllNalFiles(nalFile *nf);
+   void wordStep(nalFile *nf, vList *vl, int s);
 
-/*Syntax*/
-char **checkSyntax(nalFile *nf, vList *vl, char syntax[MAXSYNTAXWORDS][MAXSYNTAXWORDSIZE], int syntaxSize, int varconsToBeFound);
-bool correctVARCON(char *varconType, char *word);
-void freeArray(char **array, int size);
+/*PARSING*/
+   /*Complex syntax handling*/
+      char **checkSyntax(nalFile *nf, vList *vl,
+         char syntax[MAXSYNTAXWORDS][MAXSYNTAXWORDSIZE],
+         int syntaxSize, int varconsToBeFound);
+      bool correctVARCON(char *varconType, char *word);
+      void freeArray(char **array, int size);
 
-void program(nalFile *nf, vList *vl);
-void instrs(nalFile *nf, vList *vl);
-void instruct(nalFile *nf, vList *vl);
-instr file(nalFile *nf, vList *vl);
-instr nalAbort(nalFile *nf, vList *vl);
-instr input(nalFile *nf, vList *vl);
-instr in2str(nalFile *nf, vList *vl);
-instr innum(nalFile *nf, vList *vl);
-instr jump(nalFile *nf, vList *vl);
-instr nalPrint(nalFile *nf, vList *vl);
-instr nalRnd(nalFile *nf, vList *vl);
-instr nalIfcond(nalFile *nf, vList *vl);
-cond nalIf(nalFile *nf, vList *vl);
-instr nalInc(nalFile *nf, vList *vl);
-instr nalSet(nalFile *nf, vList *vl);
+   /*Formal Grammar Functions*/
+      void program(nalFile *nf, vList *vl);
+      void instrs(nalFile *nf, vList *vl);
+      void instruct(nalFile *nf, vList *vl);
+      instr file(nalFile *nf, vList *vl);
+      instr nalAbort(nalFile *nf, vList *vl);
+      instr input(nalFile *nf, vList *vl);
+      instr in2str(nalFile *nf, vList *vl);
+      instr innum(nalFile *nf, vList *vl);
+      instr jump(nalFile *nf, vList *vl);
+      instr nalPrint(nalFile *nf, vList *vl);
+      instr nalRnd(nalFile *nf, vList *vl);
+      instr nalIfcond(nalFile *nf, vList *vl);
+      cond nalIf(nalFile *nf, vList *vl);
+      instr nalInc(nalFile *nf, vList *vl);
+      instr nalSet(nalFile *nf, vList *vl);
 
-/*VARCON checks*/
-bool isstrcon(char const *word);
-bool isnumvar(char const *word);
-bool isstrvar(char const *word);
-bool isnumcon(char const *word);
-bool isvar(char const *word);
-bool iscon(char const *word);
-bool isvarcon(char const *word);
-bool isstr(char const *word);
-bool isnum(char const *word);
+   /*VARCON checks*/
+      bool validVar(char const *word, char c);
 
-bool validVar(char const *word, char c);
+      bool isstrcon(char const *word);
+      bool isnumvar(char const *word);
+      bool isstrvar(char const *word);
+      bool isnumcon(char const *word);
+      bool isvar(char const *word);
+      bool iscon(char const *word);
+      bool isvarcon(char const *word);
+      bool isstr(char const *word);
+      bool isnum(char const *word);
 
 /*INTERPRETING*/
+   /*General VARCON handling*/
+      /*Given a strcon word, returns the actual string
+      (i.e. removes the extra "" or ##)*/
+         char *getString(char const* word);
+      char ROT(char c);
+      char ROTbase(char c, char base, int rotVal, int alphabet);
+      bool isnumber(char c);
+      /*Given a strvar or numvar name, returns its actual
+      str value or double value*/
+         char *extractStr(vList *vl, char *name);
+         double extractNum(vList *vl, char *name,bool *error);
 
-/*General VARCON handling*/
-/*Given a strcon word, returns the actual string (i.e. removes the extra "" or ##)*/
-char *getString(char const* word);
-char ROT(char c);
-char ROTbase(char c, char base, int rotVal, int alphabet);
-bool isnumber(char c);
-/*Given a strvar or numvar name, returns it's actual str value or double value*/
-char *extractStr(vList *vl, char *str);
-double extractNum(vList *vl, char *name,bool *error);
+   /*INPUT*/
+      void insertInputStrings(nalFile *nf, vList *vl, char **varnames);
+      void insertInputNum(nalFile *nf, vList *vl, char** name);
+   /*PRINT*/
+      void print(nalFile *nf, vList *vl, char *varcon);
+   /*RAND*/
+      void setRandom(vList *vl, char *name);
+   /*SET*/
+      void setVariable(nalFile *nf, vList *vl);
+      bool validSet(char *name, char *val);
+   /*INC*/
+      void incVar(nalFile *nf, vList *vl, char **varname);
+   /*IFCOND*/
+      void skipToMatchingBracket(nalFile *nf, vList *vl);
+      comp compStrings(nalFile *nf, vList *vl, char **strs);
+      comp compNums(nalFile *nf, vList *vl, char **nums);
+      comp compDoubles(double n1, double n2);
+      bool condCheck(nalFile *nf, vList *vl, char *condition, char **varcons);
+      bool condCalled(char const *word);
 
-/*INPUT*/
-void insertInputStrings(nalFile *nf, vList *vl, char **varnames);
-void insertInputNum(nalFile *nf, vList *vl, char** name);
-/*PRINT*/
-void print(nalFile *nf, vList *vl, char *varcon);
-/*RAND*/
-void setRandom(vList *vl, char *name);
-/*SET*/
-void setVariable(nalFile *nf, vList *vl);
-bool validSet(char *name, char *val);
-/*INC*/
-void incVar(nalFile *nf, vList *vl, char **varname);
-/*IFCOND*/
-void skipToMatchingBracket(nalFile *nf, vList *vl);
-comp compStrings(nalFile *nf, vList *vl, char **strs);
-comp compNums(nalFile *nf, vList *vl, char **nums);
-comp compDoubles(double n1, double n2);
-bool condCheck(nalFile *nf, vList *vl, char *condition, char **varcons);
-bool condCalled(char const *word);
+/*These are malloc and calloc but also give errors if they fail to allocate*/
+   void *allocate(int size, char* const msg);
+   void *callocate(int size1, int size2, char* const msg);
+/*This function takes in a string and copies it into a correctly sized pointer,
+it then returns that pointer (which will need freeing at some point)*/
+   char *allocString(const char *str);
+
+/*ERROR functions*/
+   void tokenizeERROR(nalFile *nf, vList *vl, char const *file,
+      char const *msg);
+   void nalERROR(nalFile *nf, vList *vl, char* const msg);
+   void indexERROR(nalFile *nf, vList *vl, char* const msg, int index);
+   void syntaxERROR(nalFile *nf, vList *vl, char const *prevWord,
+      char const *expWord,  int index);
+   void variableERROR(nalFile *nf, vList *vl, char const *msg,
+      char* const name, int index);
+   /*extractNum is particularly hard to abort properly if an error
+   happens, so I made a function that does that*/
+      void handleExtractNumError(nalFile *nf, vList *vl, double errortype);

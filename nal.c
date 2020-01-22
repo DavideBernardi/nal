@@ -10,14 +10,20 @@ int main(int argc, char const *argv[])
    test();
 
    checkInput(argc, argv);
+
+   /*Initialize*/
    nf = initNalFile();
    vl = vList_init();
+   /*Set file's name*/
    nf->name = allocString(argv[1]);
+
    setupNalFile(nf, vl);
    program(nf, vl);
    #ifndef INTERP
    printf("Parsed OK\n");
    #endif
+
+   /*Terminate*/
    terminateNalFile(&nf);
    vList_free(&vl);
    return 0;
@@ -33,18 +39,41 @@ void checkInput(int argc, char const *argv[])
 
 void test(void)
 {
-/* initNatFile
-   terminateNalFile
+/* tested:
+   initNatFile()
+   setupNalFile()
+   terminateNalFile()
+   no need to test terminateAllNalFiles since it is just
+   terminateNalFile applied to a list of files.
+   wordStep()
     */
-
    nalFile *nf;
+   char wordsInTest1[WORDSINTEST1][TESTWORDSIZE] =
+   {"{", "PRINT", "\"Hello World! From test1\"", "}"};
+   int i, j, strCheck;
 
    nf = initNalFile();
    assert(nf!=NULL);
    assert(nf->words == NULL);
    assert(nf->currWord == 0);
    assert(nf->totWords == 0);
+   assert(nf->name == NULL);
+   assert(nf->prev == NULL);
 
+   nf->name = allocString(TESTFILE1);
+   setupNalFile(nf,NULL);
+   assert(nf->totWords == WORDSINTEST1);
+   for (i = 0; i < WORDSINTEST1; i++) {
+      j = strcmp(nf->words[i],wordsInTest1[i]);
+      assert(j==0);
+   }
+
+   /*Testing wordStep*/
+   for (i = 1; i < WORDSINTEST1; i++) {
+      wordStep(nf,NULL, 1);
+      strCheck = strsame(nf->words[nf->currWord],wordsInTest1[i]);
+      assert(strCheck);
+   }
 
    terminateNalFile(&nf);
    assert(nf==NULL);
@@ -56,19 +85,20 @@ void test(void)
 
 void testTokenization(void)
 {
-   /*multiWordString
-   allocateNode
-   wordLength
-   getWordSizes
-   getWord
-   tokenizeFile
-   wordStep*/
+/* Tested:
+   getFile(), strAppend(), allocateNode() and freeList() are too
+   simple to require testing.
+   multiWordString()
+   allocateNode()
+   wordLength()
+   getWordSizes()
+   getWord()
+   tokenizeFile()*/
    intNode *n, *curr, *oldNode;
    FILE *testFile;
    intList *wordLengths;
    char testWord[MAXWORDSIZE];
    nalFile *testNal;
-   vList *testList;
    int i, strCheck;
    char wordsInTest1[WORDSINTEST1][TESTWORDSIZE] =
    {"{", "PRINT", "\"Hello World! From test1\"", "}"};
@@ -135,26 +165,27 @@ void testTokenization(void)
       assert(strCheck);
    }
 
-   /*Testing wordStep*/
-   testList = vList_init();
-   for (i = 1; i < WORDSINTEST1; i++) {
-      wordStep(testNal,testList, 1);
-      strCheck = strsame(testNal->words[testNal->currWord],wordsInTest1[i]);
-      assert(strCheck);
-   }
-   vList_free(&testList);
    terminateNalFile(&testNal);
 }
 
 void testParsingFunctions(void)
 {
-   /*validVar
-   isnumvar
-   isstrvar
-   isstrcon
-   isnumcon
+/* To Test:
+   checkSyntax()
+
+   Tested:
+   validVar()
+   isnumvar()
+   isstrvar()
+   isstrcon()
+   isnumcon()
    No need to test isvar(), iscon(), isvarcon(), isstr() and isnum()
-   because they are just unions of other functions*/
+   because they are just unions of other functions
+   freeArray() is just a bunch of frees() acting linerarly on an array
+   so no point testing this.
+   correctVARCON() has no complexity in it, the testing for it would
+   look exactly the same as the actual function so no point testing this.
+   */
 
    /*Test validVar*/
    assert(validVar("$C",'$'));
@@ -235,8 +266,21 @@ void testParsingFunctions(void)
 
 void testInterpFunctions(void)
 {
-   /*ROT()
-   getString()*/
+   /*Tested:
+   ROTbase() is really a simple maths formula, makes sense to just test ROT().
+   isnumber() is too simple to require testing.
+   ROT()
+   getString()
+   extractStr() and extractNum() are very simple, the only complexity
+   in them is to deal with errors, and since vList_search() has already been
+   tested in testvList.c we do not need to test them.
+   setRandom()
+   incVar()
+    */
+   vList *vl;
+   double rand, increasedVal;
+   char **varname;
+   bool error;
 
    testROT();
 
@@ -250,6 +294,31 @@ void testInterpFunctions(void)
    testGetString("#Gurer vf gur ahzore 93 naq 67 va urer#",
       "There is the number 48 and 12 in here");
 
+   testIfCond();
+   testSet();
+
+   /*Test setRandom()*/
+   vl = vList_init();
+   setRandom(vl,"%A");
+   error = FALSE;
+   rand = extractNum(vl,"%A",&error);
+   assert(error == FALSE);
+   assert(compDoubles(rand, 0)==GREATER || compDoubles(rand, 0)==EQUAL);
+   assert(compDoubles(rand, 99)==SMALLER || compDoubles(rand, 99)==EQUAL);
+   vList_free(&vl);
+
+   /*Test incVar()*/
+   vl = vList_init();
+   vList_insert(vl,"%NUMBER","19.3");
+   varname = (char **)allocate(VARSFROMINC*sizeof(char *),"String Array");
+   varname[0] = (char *)allocate(INCTESTSTRSIZE*sizeof(char),"Number Value as a String");
+   strcpy(varname[0],"%NUMBER");
+   incVar(NULL,vl,varname);
+   increasedVal = extractNum(vl,"%NUMBER", &error);
+   assert(error == FALSE);
+   assert(compDoubles(increasedVal,20.3)==EQUAL);
+   freeArray(varname,1);
+   vList_free(&vl);
 }
 
 void testROT(void)
@@ -297,6 +366,112 @@ void testGetString(char const* word, char const* realStr)
    strCheck = strsame(str,realStr);
    assert(strCheck);
    free(str);
+}
+
+void testIfCond(void)
+{
+/* Tested:
+   condCalled() too simple to require testing
+   skipToMatchingBracket()
+   compDoubles()
+   compNums()
+   compStrings()
+   condCheck()
+   */
+   vList *vl;
+   char **names;
+   nalFile *nf;
+
+   /*Test skipToMatchingBracket()*/
+   nf = initNalFile();
+   nf->name = allocString(TESTBRACKETSFILE);
+   setupNalFile(nf,NULL);
+   nf->currWord = 18;
+   skipToMatchingBracket(nf, NULL);
+   assert(nf->currWord == 33);
+   terminateNalFile(&nf);
+
+   /*Test compDoubles()*/
+   assert(compDoubles(20,10)==GREATER);
+   assert(compDoubles(0,-10)==GREATER);
+   assert(compDoubles(10.0003,10)==GREATER);
+   assert(compDoubles(10.0000000000000000001,10)==EQUAL);
+
+   /*Test compNums() (uses compDoubles, only need a couple simple tests to
+   check variable names are passed correctly)*/
+   vl = vList_init();
+   vList_insert(vl,"%A","42.4242");
+   vList_insert(vl,"%B","40.642");
+   names = (char **)allocate(VARSFROMCOND*sizeof(char *),"String Array");
+   names[0] = allocString("%A");
+   names[1] = allocString("%B");
+   assert(compNums(NULL,vl,names)==GREATER);
+   strcpy(names[1],"50");
+   assert(compNums(NULL,vl,names)==SMALLER);
+   freeArray(names,2);
+   vList_free(&vl);
+
+   /*Test compString()*/
+   vl = vList_init();
+   vList_insert(vl,"$A","Hello how are you");
+   vList_insert(vl,"$VERYVERYVERYVERYLONGVARNAME","Hello how are you");
+   names = (char **)allocate(VARSFROMCOND*sizeof(char *),"String Array");
+   names[0] = allocString("$A");
+   names[1] = allocString("$VERYVERYVERYVERYLONGVARNAME");
+   assert(compStrings(NULL,vl,names)==EQUAL);
+   strcpy(names[1],"#Uryyb ubj ner lbh#");
+   assert(compStrings(NULL,vl,names)==EQUAL);
+   freeArray(names,2);
+   vList_free(&vl);
+
+   /*Test condCheck()*/
+   vl = vList_init();
+   names = (char **)allocate(VARSFROMCOND*sizeof(char *),"String Array");
+   names[0] = (char *)allocate(TESTWORDSIZE*sizeof(char),"String");
+   names[1] = (char *)allocate(TESTWORDSIZE*sizeof(char),"String");
+   vList_insert(vl,"$A","Hello World");
+   strcpy(names[0],"$A");
+   strcpy(names[1],"\"Hello World\"");
+   assert(condCheck(NULL,vl,"IFEQUAL",names)==TRUE);
+   vList_insert(vl,"$B", "Not Hello World");
+   strcpy(names[1],"$B");
+   assert(condCheck(NULL,vl,"IFEQUAL",names)==FALSE);
+
+   vList_insert(vl,"%A","28.3");
+   strcpy(names[0],"%A");
+   strcpy(names[1],"28.35");
+   assert(condCheck(NULL,vl,"IFEQUAL",names)==FALSE);
+   vList_insert(vl,"%B", "28.3000000");
+   strcpy(names[1],"%B");
+   assert(condCheck(NULL,vl,"IFEQUAL",names)==TRUE);
+   freeArray(names,2);
+   vList_free(&vl);
+}
+
+void testSet(void)
+{
+/* To Test:
+   setVariable()
+
+   Tested:
+   validSet()
+*/
+   vList *vl;
+
+   assert(validSet("%A","19.4"));
+   assert(validSet("%B","%C"));
+   assert(validSet("$A","$B"));
+   assert(validSet("$C","\"Hello dude\""));
+   assert(!validSet("%A","\"Hello\""));
+   assert(!validSet("%B","$C"));
+   assert(!validSet("$A","%B"));
+   assert(!validSet("$C","17.7"));
+
+   vl = vList_init();
+
+
+
+   vList_free(&vl);
 }
 
 /*Given a file name file[], returns a pointer to the file structure
@@ -726,7 +901,7 @@ void freeArray(char **array, int size)
 
 instr file(nalFile *nf, vList *vl)
 {
-   #ifdef INTERP
+   #ifdef INTFILE
    nalFile *newFile;
    #endif
 
@@ -735,7 +910,7 @@ instr file(nalFile *nf, vList *vl)
       if (!isstrcon(nf->words[nf->currWord])) {
          syntaxERROR(nf,vl, "FILE", "STRCON", nf->currWord);
       }
-      #ifdef INTERP
+      #ifdef INTFILE
       newFile = initNalFile();
       newFile->name = getString(nf->words[nf->currWord]);
       /*Keep track of previous files in case of ERROR*/
@@ -753,7 +928,7 @@ instr file(nalFile *nf, vList *vl)
 instr nalAbort(nalFile *nf, vList *vl)
 {
    if (strsame(nf->words[nf->currWord], "ABORT")) {
-      #ifdef INTERP
+      #ifdef INTABORT
       vList_free(&vl);
       terminateAllNalFiles(nf);
       exit(EXIT_SUCCESS);
@@ -786,7 +961,7 @@ instr in2str(nalFile *nf, vList *vl)
    if (strsame(nf->words[nf->currWord], syntax[0])) {
       wordStep(nf,vl,1);
       varnames = checkSyntax(nf, vl, syntax, IN2STRWORDS, VARSFROMIN2STR);
-      #ifdef INTERP
+      #ifdef INTIN2STR
       insertInputStrings(nf,vl,varnames);
       #endif
       freeArray(varnames,VARSFROMIN2STR);
@@ -828,7 +1003,7 @@ instr innum(nalFile *nf, vList *vl)
    if (strsame(nf->words[nf->currWord], syntax[0])) {
       wordStep(nf,vl,1);
       varname = checkSyntax(nf, vl, syntax, INNUMWORDS, VARSFROMINNUM);
-      #ifdef INTERP
+      #ifdef INTINNUM
       insertInputNum(nf,vl,varname);
       #endif
       freeArray(varname,VARSFROMINNUM);
@@ -861,7 +1036,7 @@ void insertInputNum(nalFile *nf, vList *vl, char** name)
 string and passing that string*/
 instr jump(nalFile *nf, vList *vl)
 {
-   #ifdef INTERP
+   #ifdef INTJUMP
    int n, err;
    #endif
    if (strsame(nf->words[nf->currWord], "JUMP")) {
@@ -869,7 +1044,7 @@ instr jump(nalFile *nf, vList *vl)
       if (!isnumcon(nf->words[nf->currWord])) {
          syntaxERROR(nf,vl, "JUMP", "NUMCON", nf->currWord);
       }
-      #ifdef INTERP
+      #ifdef INTJUMP
       err = sscanf(nf->words[nf->currWord], "%d", &n);
       if (err!=1 || n<0 || n>nf->totWords-1) {
          indexERROR(nf,vl,
@@ -893,7 +1068,7 @@ instr nalPrint(nalFile *nf, vList *vl)
       if (!isvarcon(nf->words[nf->currWord])) {
          syntaxERROR(nf,vl, nf->words[nf->currWord-1], "VARCON",nf->currWord);
       }
-      #ifdef INTERP
+      #ifdef INTPRINT
       print(nf, vl, nf->words[nf->currWord]);
       if (strsame(nf->words[nf->currWord-1],"PRINT")) {
          printf("\n");
@@ -936,7 +1111,7 @@ instr nalRnd(nalFile *nf, vList *vl)
    if (strsame(nf->words[nf->currWord], syntax[0])) {
       wordStep(nf,vl,1);
       varname = checkSyntax(nf, vl, syntax, RANDWORDS, VARSFROMRAND);
-      #ifdef INTERP
+      #ifdef INTRND
       setRandom(vl,varname[0]);
       #endif
       freeArray(varname,VARSFROMRAND);
@@ -1011,7 +1186,7 @@ cond nalIf(nalFile *nf, vList *vl)
       condition = EXECPASS;
       wordStep(nf,vl,1);
       vNames = checkSyntax(nf, vl, syntax, CONDWORDS, VARSFROMCOND);
-      #ifdef INTERP
+      #ifdef INTIF
       if (!condCheck(nf,vl,syntax[0],vNames)) {
          condition =  EXECFAIL;
       }
@@ -1145,7 +1320,7 @@ instr nalInc(nalFile *nf, vList *vl)
    if (strsame(nf->words[nf->currWord], syntax[0])) {
       wordStep(nf,vl,1);
       varname = checkSyntax(nf, vl, syntax, INCWORDS, VARSFROMINC);
-      #ifdef INTERP
+      #ifdef INTINC
       incVar(nf, vl,varname);
       #endif
       freeArray(varname,VARSFROMINC);
@@ -1186,7 +1361,7 @@ instr nalSet(nalFile *nf, vList *vl)
    if (!isvarcon(nf->words[nf->currWord])) {
       syntaxERROR(nf,vl, "=", "VARCON", nf->currWord);
       }
-      #ifdef INTERP
+      #ifdef INTSET
       setVariable(nf,vl);
       #endif
       wordStep(nf,vl,1);
@@ -1509,7 +1684,9 @@ void tokenizeERROR(nalFile *nf, vList *vl, char const *file, char const *msg)
 
    errorLine = (char *)allocate(errorLineLength*sizeof(char),"Error Line");
 
-   sprintf(errorLine, "ERROR MESSAGE: %s\nError occurred while tokenizing file: \"%s\"\nTERMINATING . . .\n", msg, file);
+   sprintf(errorLine,
+      "ERROR MESSAGE: %s\nError occurred while tokenizing file: \"%s\"\nTERMINATING . . .\n",
+      msg, file);
 
    fprintf(stderr, "%s", errorLine);
    vList_free(&vl);
@@ -1530,7 +1707,9 @@ void nalERROR(nalFile *nf, vList *vl, char* const msg)
 
    errorLine = (char *)allocate(errorLineLength*sizeof(char),"Error Line");
 
-   sprintf(errorLine, "ERROR MESSAGE: %s\nError occurred in file \"%s\"\nTERMINATING . . .\n", msg, nf->name);
+   sprintf(errorLine,
+      "ERROR MESSAGE: %s\nError occurred in file \"%s\"\nTERMINATING . . .\n",
+      msg, nf->name);
 
    vList_free(&vl);
    terminateAllNalFiles(nf);
@@ -1593,7 +1772,8 @@ void syntaxERROR(nalFile *nf, vList *vl,char const *prevWord,
 /*Error for when something goes wrong at a particular point in a
 tokenized nalFile.
 SPECIFICALLY: A variable is used incorrectly*/
-void variableERROR(nalFile *nf, vList *vl, char const *msg, char* const name, int index)
+void variableERROR(nalFile *nf, vList *vl, char const *msg,
+   char* const name, int index)
 {
    char *errorLine;
    int errorLineLength;

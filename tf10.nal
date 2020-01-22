@@ -3,6 +3,7 @@
    %C = 0
    RND ( %A )
    PRINT %A
+   PRINT "Insert a Number"
    INNUM ( %B )
    INC ( %C )
    IFGREATER ( $N , "Hi" ) {

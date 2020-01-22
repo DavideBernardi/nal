@@ -10,9 +10,9 @@ typedef struct vList{
 } vList;
 
 vList *vList_init(void);
-/*If variable exists already, just updates the val*/
+/*Insert new variable. If variable exists already, just updates the val*/
 void vList_insert(vList *vl, char *name, char *val);
-/*Returns the name string, if no match returns NULL*/
+/*Returns the (original) val string, if no match returns NULL*/
 char *vList_search(vList *vl, char *name);
 /*Print all Variables to screen*/
 void vList_print(vList *vl);
