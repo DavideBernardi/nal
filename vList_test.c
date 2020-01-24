@@ -39,7 +39,6 @@ int main(void)
       i = strcmp(vList_search(vl1, numnames[j]), numvals[j]);
       assert(i==0);
    }
-   printf("%d\n", vl1->size);
 
    vList_free(&vl1);
    assert(vl1==NULL);

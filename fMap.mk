@@ -1,9 +1,9 @@
 CFLAGS = -O2 -Wall -Wextra -Werror -Wfloat-equal -pedantic -ansi
 DFLAGS = -g3 -Wall -Wextra -Werror -Wfloat-equal -pedantic -ansi
 SFLAGS = -g3 -fsanitize=undefined -fsanitize=address
-TESTBASE = vList_test
-INCS = vList.h
-SOURCES =  $(TESTBASE).c vList.c
+TESTBASE = fMap_test
+INCS = fMap.h
+SOURCES =  $(TESTBASE).c fMap.c
 EXECS = $(TESTBASE) $(TESTBASE)_d $(TESTBASE)_s
 CC = clang
 

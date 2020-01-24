@@ -67,6 +67,7 @@ testparsecorrect : parse_s parse_d
 	./parse_s labsw.$(BASE)
 	./parse_s munge.$(BASE)
 
+#The following are supposed to give an error, which is ignored thanks to the '-'
 testparseerrors : parse_s parse_d
 
 	-valgrind ./parse_d tf1.$(BASE)
@@ -113,6 +114,7 @@ testinterpcorrect : interp_s interp_d
 		./interp_s t$$number.$(BASE) ; \
 	done
 
+#The following are supposed to give an error, which is ignored thanks to the '-'
 testinterperrors : interp_s interp_d
 
 	-valgrind ./interp_d tf1.$(BASE)

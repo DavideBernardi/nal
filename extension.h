@@ -31,6 +31,7 @@ ADD UNIT TESTING FOR:
 #include <ctype.h>
 
 #include "vList.h"
+#include "fmvm.h"
 
 /*Used in testing*/
 #define TESTFILE1 "test1.nal"

@@ -1,55 +1,177 @@
-I started by writing the 1s and 0s parser as instructed, but after doing that I
-decided I wanted my program to be able to reliably tokenize a given file before
-doing any of the actual syntax.
+Before writing the parser or interpreter, I spent a good deal of time writing a
+"tokenizer" i.e. a set of functions that take in a file and create a nalFile
+structure where all the words in the file are stored in an array.
 
-The reason I chose to do it this way is that I knew my testing strategy for the
-Syntax was most likely going to involve writing some .nal files and running them.
+Functions Tested This Way:
+FILE *getFile(nalFile *nf, vList *vl, char const file[]);
+intList *getWordSizes(nalFile *nf, vList *vl, FILE *fp);
+int wordLength(nalFile *nf, vList *vl, char const *currWord, FILE *fp, intList
+   *wordLens);
+void tokenizeFile(nalFile *nf, vList *vl, FILE *fp, intList *wordLengths);
+void getWord(nalFile *nf, vList *vl, char *word, FILE* fp);
+void strAppend(char *word, char c);
+bool multiWordString(char const *word);
+intNode *allocateNode(int i);
+void freeList(intList **nf);
+nalFile *initNalFile(void);
+void setupNalFile(nalFile *nf, vList *vl);
+void terminateNalFile(nalFile **nf);
+void terminateAllNalFiles(nalFile *nf);
+void wordStep(nalFile *nf, vList *vl, int s);
 
-Which wouldn't have been possible without sorting out all of the file reading
-infrastructure.
-All of that code was easy to test function by function.
+These were all Unit Tested in:
+void test(void);
+void testTokenization(void);
 
-Then I started building the parser one command at a time, for each new command
-I wrote a new .nal file which only tested that particular piece of syntax.
-I also wrote a .nal file which was supposed to break at that particular syntax, and checked that when it terminated the program no leaks happened.
+Then while I was building the parser, for each syntax rule I added I made a .nal
+file which only contained that syntax rule and possibly other syntax rules that
+I had already written and tested in this way.
+Then I would run these through Valgrind and with the sanitize flags in order to
+check that they run correctly and no leaks took place.
+I also wrote some files which purposefully produce an ERROR and also run these
+in Valgrind and with the sanitize flags (An error would come up but no leaks).
 
-For example by having a .nal file which only contained a {, I noticed that the program was not terminating correctly.
-And that was because, after completing an instruction I was simply increasing the current word index by 1.
-But what happens if the current word is the last one?? Then when trying to read the next word, the program would be reading outside of the array!
-To fix this I wrote the wordStep(int s) function, which increases the current word index by s, but also checks that the new index is withing the array, and returns an error if it is not.
+Functions tested this way:
+void program(nalFile *nf, vList *vl);
+void instrs(nalFile *nf, vList *vl);
+void instruct(nalFile *nf, vList *vl);
+instr file(nalFile *nf, vList *vl);
+instr nalAbort(nalFile *nf, vList *vl);
+instr input(nalFile *nf, vList *vl);
+instr in2str(nalFile *nf, vList *vl);
+instr innum(nalFile *nf, vList *vl);
+instr jump(nalFile *nf, vList *vl);
+instr nalPrint(nalFile *nf, vList *vl);
+instr nalRnd(nalFile *nf, vList *vl);
+instr nalIfcond(nalFile *nf, vList *vl);
+cond nalIf(nalFile *nf, vList *vl);
+instr nalInc(nalFile *nf, vList *vl);
+instr nalSet(nalFile *nf, vList *vl);
 
-Next I wrote the interpeter code for <FILE> and <ABORT>. I chose to work on these functions first because they do not deal with Variables or Conditionals, and also it looked like building these functions required a large change in the file structures in order to allow .nal files to properly interact with each other.
+It's worth noting that even in this section I was able to unit test some of the
+functions:
 
-After working on it for a while though I realized that wasn't true.
-<FILE> only required calling program() with the new .nal file within the file() function.
-It was quite easy to test this function using .nal files as I could just write .nal files calling one another and check if they parsed correctly (by not having the "Parsed OK" print inside a #ifndef -INTERP).
-<ABORT> was a little more complicated, I had already built and tested a terminateNalFile() function, but I had to expand this to be able to terminate all open files if more than one was opened with the file() function.
-To do so I simply added a pointer in the nalFile structure which points to the "previous file", this way if ABORT is called, it is simple to go down this linked list and close each file.
-Again, this function was easy to test using .nal files which opened each other using <FILE> and check that if ABORT was called no memory leaks happened.
+Functions Tested This Way:
+char **checkSyntax(nalFile *nf, vList *vl,
+   char syntax[MAXSYNTAXWORDS][MAXSYNTAXWORDSIZE], int syntaxSize,
+   int varconsToBeFound);
+bool correctVARCON(char *varconType, char *word);
+void freeArray(char **array, int size);
+bool validVar(char const *word, char c);
+bool isstrcon(char const *word);
+bool isnumvar(char const *word);
+bool isstrvar(char const *word);
+bool isnumcon(char const *word);
+bool isvar(char const *word);
+bool iscon(char const *word);
+bool isvarcon(char const *word);
+bool isstr(char const *word);
+bool isnum(char const *word);
 
-In order to read the string constant after a FILE command I had to write a function to deal with string constants, which involved playing with the ROT18 algorithm.
+These were all Unit Tested in:
+void testParsingFunctions(void);
+void testCheckSyntax(void);
 
-When testing the ROT function, I first encountered some issues using the % operator, it wasn't dealing properly with negative values so I used an if statement instead. Then when writing the arrays I used for testing lots of weird stuff kept happening until i realized I needed to add 1 to the size of each array for the end of string char.
+Here, when running a .nal file which only contained a "{", the terminal would
+give me an error, and that was because when moving from a word to the next one
+I was simply increasing the word index (i.e. nf->currWord++).
+But what happens if the word is the last one? Then when reading the next word,
+the program will try to read outside the array!
+To fix this i wrote the function wordStep(), which increases the word index by s
+ while also returning an error if the new index is not within the array.
 
-Then I moved onto <JUMP>, since it also doesn't deal with variables. It was quite simple to write given that the words are stored as an array, and to test I tried it on the .nal files which is an infinite loop.
+Now, before moving on to the interpreter, I wrote vList.c, which is simply the
+set of functions I need to play with variables. That code is a simpler version
+of our mvm.c that is more approriate for what our variables need to look like.
+I tested that code in testvList.c, the testing can be executed via the makefile
+vList.mk, using rule "memleaks".
 
-Now it was time to start playing with variables though, so I took inspiration from our work with mvms and wrote another set of files called vList .c, .h and testvList.c for testing.
-These files will have all the functions required to handle variables.
-I stored all variables as strings.
+The testing for these functions was easy, I slightly alterated the testing setup
+that we had for mvm and simply run that. Since the functions in vList.c are
+relatively simple I didn't encounter any bugs (excluded a couple of the usual
+syntax errors and whatnot).
 
-Testing these functions was easy because we already had a testfile setup for mvm, so I slightly adapted that, surprisingly I didn't encounter any errors while testing this (except a bunch of syntax errors like missing commas and things like that).
+Finally, while building the interpreter I mainly used two strategies:
 
-Now I could start interpeting the commands which used variables.
+1. For each syntax rule I tried to encapsulate as much of the "interpreting" as
+possible into one or more functions which give some output, that way I was able
+to do normal Unit Testing on most of the interpreting of the syntax rules.
 
-I started with the input, as a first iteration just to keep it simple, I used scanf into a string with a set maximum size. This can easily cause an overflow and is something that will need to be looked at in the future.
-But for now assuming variable names will have <1000 characters allows us to easily store user input. I tested this writing .nal files only containing innum and only containing in2str. There were some issues with freeing the pointers I used to read the variable names but aside from that, smooth sailing.
+Functions Tested This Way:
+char *getString(char const* word);
+char ROT(char c);
+char ROTbase(char c, char base, int rotVal, int alphabet);
+bool isnumber(char c);
+char *extractStr(vList *vl, char *name);
+double extractNum(vList *vl, char *name,bool *error);
+void setRandom(vList *vl, char *name);
+void setVariable(nalFile *nf, vList *vl);
+bool validSet(char *name, char *val);
+void incVar(nalFile *nf, vList *vl, char **varname);
+void skipToMatchingBracket(nalFile *nf, vList *vl);
+comp compStrings(nalFile *nf, vList *vl, char **strs);
+comp compNums(nalFile *nf, vList *vl, char **nums);
+comp compDoubles(double n1, double n2);
+bool condCheck(nalFile *nf, vList *vl, char *condition, char **varcons);
+bool condCalled(char const *word);
 
-The first big problem I found was when writing the code for ifequal. I realized that if my code (even just my parser !!) found a closing bracket "}", my instrs() function would once again call itself, without increasing the file index !! So it would just recursively call itself and return until all the open brackets "{" got closed by one single "}" (because the index wasn't moving), and then the program would stop !!
-So all this time if in any of the .nal file I parsed there were more than one "}", the program would have just stopped parsing there and returned no error message, just "Parsed OK".
-This is something I almost definitely would not have caught if the assignment was to only submit the parser, scary!
+These were all Unit Tested in:
+void testInterpFunctions(void);
+void testROT(void);
+void testGetString(char const* word, char const* realStr);
+void testIfCond(void);
+void testSet(void);
 
-What I did for testing interpreter functions:
-I kept them separate from the parsing functions when possible.
-For example, for in2str() we first parse the whole rule, we store the two STRVARS to store strings in and then we call another functions which gets the input and stores it into the two STRVARS.
+Here is when I caught a very severe issue with my code:
+If my code encountered a closing bracket "}", instrs() would simply return,
+without increasing the file index! So if we were inside a conditional and a "}"
+was found, all the currently open instrs() would see this "}" and terminate,
+until even the main instrs() terminated and the program would stop and it
+would output without an error message or anything!
+So all of this time if in any of the .nal file I parsed for testing had more
+than one "}", the program would have just stopped parsing at the first "}"
+and just said "Parsed OK".
+Thankfully I was able to catch this, and simply change my instrs() function a
+little to make it take a step if it found a "}".
 
-That way the "complex" part of the function can be normally unit tested.
+Now let's get back to my 2 testing strategies for the interpreter.
+
+Strategy 1 wasn't possible for every syntax rule: <INPUT> and <PRINT(N)> either
+require user input or print to screen, so they can't be normally unit tested.
+
+This brought me to my second strategy:
+
+2. I have a different #ifdef NAME for each syntax rule (i.e. #ifdef INTPRINT for
+<PRINT>). This way I can test how the interpreter deals with a single syntax
+rule while just parsing over all the other rules by compiling with only the
+required -DNAME flag (i.e. -DINTPRINT for <PRINT>). And running a .nal file on
+this partial interpreter.
+A good thing about this is that I was able to combine the various -DNAMEs of
+various interpreter functions in order to check that they worked properly in
+combination. For example if I wanted to check if <PRINT> was able to print a
+variable that was <SET>, I would compile with -DINTPRINT and -DINTSET, so all
+instructions would just be parsed over except for <SET> and <PRINT>.
+
+Functions Tested This Way:
+void insertInputStrings(nalFile *nf, vList *vl, char **varnames);
+void insertInputNum(nalFile *nf, vList *vl, char** name);
+void print(nalFile *nf, vList *vl, char *varcon);
+(I tested every other interpreter function again with this method as well)
+
+The main strength of my strategy was the flexibility of it, I was able to write
+one syntax rule, test it, then write the next one, test it, and I was then able
+to first check whether my syntax rule worked individually, and then whether it
+worked in combination with one or more of the other syntax rules.
+
+The main weakness of this strategy is that I had to write a lot of .nal files
+myself.
+
+The only issue that I am aware of but wasn't able to deal with, is that when
+<JUMP>ing from outside an <IFCOND> to inside one, the program would terminate
+when it finds the "}" at the end of the <IFCOND> rather than at the end of the
+program.
+
+All of the .nal file I used for testing can be run simply with the "test" rule
+in the Makefile.
+The files that are meant to trigger errors are tf1.nal to tf14.nal, these are
+also run in the Makefile but with the "-" flag which ignores errors.

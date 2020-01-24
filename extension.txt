@@ -1,0 +1,11 @@
+FUNCTIONS
+
+For my extension I wanted to do something that showcased my coding skills, while at the same time being fun to code and more important being something that would be actually useful for writing games in this language.
+
+Functions seemed to be the best thing for those goals.
+
+How it works:
+
+Before any parsing or interpreting happens, we run findFunctions()
+
+Which simply finds all the functions in the file
