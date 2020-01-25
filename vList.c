@@ -28,8 +28,7 @@ void vList_insert(vList *vl, char *name, char *val)
    int namelen, vallen;
 
    if (vl == NULL || name == NULL || val == NULL) {
-      fprintf(stderr, "Passed a NULL pointer to Insert function, terminating . . .\n");
-      exit(EXIT_FAILURE);
+      return;
    }
 
    namelen = strlen(name);
@@ -68,8 +67,7 @@ char *vList_search(vList *vl, char *name)
    nalVar *curr;
 
    if (vl == NULL || name == NULL) {
-      fprintf(stderr, "Passed a NULL pointer to Search function, terminating . . .\n");
-      exit(EXIT_FAILURE);
+      return NULL;
    }
 
    curr = vl->head;
