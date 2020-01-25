@@ -1,0 +1,131 @@
+PRINT {
+   PRINT "Input 2 Strings:"
+   IN2STR ( $STRONE , $STRTWO )
+   PRINT "Input 2 Strings:"
+   IN2STR ( $STRTWO , $STRTHREE )
+   PRINT "Input a Number:"
+   INNUM ( %NUMONE )
+   PRINT "Input a Number:"
+   INNUM ( %NUMONE )
+   PRINT $STRONE
+   PRINT $STRTWO
+   PRINT %NUMONE
+}
+
+MAIN {
+   PRINTN "Testing PrintN | "
+   PRINT "Testing Numbers Printing:"
+   PRINT 325.123
+
+   FUNCTION ( RANDOM )
+
+   PRINT -54353
+   PRINT 0.01
+   PRINT 0
+
+}
+
+RANDOM {
+
+   RND ( %N )
+   PRINTN "A Random Number: "
+   PRINT %N
+}
+
+SETSTUFF {
+   $A = "Hello"
+   $B = $A
+   %A = 17.6
+   %B = %A
+   $C = "17.8"
+   PRINT "Some String Variables: "
+   PRINT $A
+   PRINT $B
+   PRINT $C
+   PRINT "And a Number Variable: "
+   PRINT %B
+}
+
+IFEQUALS {
+   $A = "Hello"
+   IFEQUAL ( "Hello" , $A ) {
+      PRINT "Equal works 1"
+   }
+
+   IFEQUAL ( $A , "Hello" ) {
+      PRINT "Equal works 2"
+   }
+   $B = "Hello"
+   IFEQUAL ( $A , $B ) {
+      PRINT "Equal works 3"
+   }
+   IFEQUAL ( $B , $A ) {
+      PRINT "Equal works 4"
+   }
+
+   %A = 1
+   IFEQUAL ( 1 , %A ) {
+      PRINT "Equal works 5"
+   }
+   IFEQUAL ( %A , 1 ) {
+      PRINT "Equal works 6"
+   }
+   %B = 1
+   IFEQUAL ( %A , %B ) {
+      PRINT "Equal works 7"
+   }
+   IFEQUAL ( %B , %A ) {
+      PRINT "Equal works 8"
+   }
+
+
+   IFEQUAL ( 17.5 , 17.8 ) {
+      PRINT "Equal doesn't work 1"
+      ABORT
+   }
+   IFEQUAL ( "Hello" , "Hellu" ) {
+      PRINT "Equal doesn't work 2"
+      ABORT
+   }
+   $A = "Hella"
+   IFEQUAL ( "Hello" , $A ) {
+      PRINT "Equal doesn't work 3"
+      ABORT
+   }
+   IFEQUAL ( $A , "Hello" ) {
+      PRINT "Equal doesn't work 4"
+      ABORT
+   }
+   $B = "Hellu"
+   IFEQUAL ( $A , $B ) {
+      PRINT "Equal doesn't work 5"
+      ABORT
+   }
+   IFEQUAL ( $B , $A ) {
+      PRINT "Equal doesn't work 6"
+      ABORT
+   }
+
+   %A = 2
+   IFEQUAL ( 1 , %A ) {
+      PRINT "Equal doesn't work 7"
+      ABORT
+   }
+   IFEQUAL ( %A , 1 ) {
+      PRINT "Equal doesn't work 8"
+      ABORT
+   }
+   %B = 1
+   IFEQUAL ( %A , %B ) {
+      PRINT "Equal doesn't work 9"
+      ABORT
+   }
+   IFEQUAL ( %B , %A ) {
+      PRINT "Equal doesn't work 10"
+      ABORT
+   }
+
+
+   PRINT "Equal works."
+
+}

@@ -1,26 +1,5 @@
 /*
 NOTES:
-   1) Every possible ERROR should be handled correctly
-   (with approriate error messages and frees).
-   Only exception is malloc and calloc errors (give a message but does not free
-   everything), and a weird <JUMP> case:
-   When jumping from outside a Conditional to Inside one, the program will
-   end at the end of the conditional rather than at the end of the program
-   (no error message, but everything gets freed).
-
-
-   2) If a double is set as the index after <JUMP>, only the integer part
-   is considered (not closest integer approximation, no automatic abort).
-   i.e. JUMP 9.312 would jump to word 9.
-
-
-   3) When taking in input from the user, the string has a maximum size of
-   1000000 (Which then gets reallocated appropriately),
-   however if the input string is larger than that,
-   overflow happens with no error messages.
-
-ADD UNIT TESTING FOR:
-      checkSyntax()
 */
 
 #include <stdio.h>
@@ -31,16 +10,16 @@ ADD UNIT TESTING FOR:
 #include <ctype.h>
 
 #include "vList.h"
-#include "fmvm.h"
+#include "fMap.h"
 
 /*Used in testing*/
-#define TESTFILE1 "test1.nal"
-#define WORDSINTEST1 4
+#define TESTFILE1 "extest2.nal"
+#define WORDSINTEST1 5
 #define TESTWORDSIZE 1000
-#define TESTCHECKSYNTAXFILE "t4.nal"
+#define TESTCHECKSYNTAXFILE "extest3.nal"
 #define INCTESTSTRSIZE 10000
-#define TESTBRACKETSFILE "labne.nal"
-#define TESTSETVARFILE "t8.nal"
+#define TESTBRACKETSFILE "exlabne.nal"
+#define TESTSETVARFILE "extest4.nal"
 
 
 /*Maximum size of a single %s pulled from the file.
@@ -113,7 +92,10 @@ Note: max is 1000, last char is end of string*/
 
 #define strsame(A,B) (strcmp(A, B)==0)
 
+#ifndef BOOL
+#define BOOL
 typedef enum {FALSE, TRUE} bool;
+#endif
 typedef enum {NOTEXECUTED, EXECUTED} instr;
 typedef enum {NUM, STR, ROTSTR} vartype;
 
@@ -121,12 +103,18 @@ typedef enum {NUM, STR, ROTSTR} vartype;
 typedef enum {NOTEXEC, EXECPASS, EXECFAIL} cond; /*Similar to typedef instr*/
 typedef enum {NOCOMP, SMALLER, EQUAL, GREATER} comp;
 
+/*#DEFINES for extension*/
+#define MAIN "MAIN"
+#define FUNCWORDS 4
+#define VARSFROMFUNC 1
+
 typedef struct nalFile{
    char **words;
    int currWord;
    int totWords;
    char *name;
    struct nalFile *prev;
+   fMap *fm;
 } nalFile;
 
 typedef struct intNode{
@@ -142,6 +130,14 @@ typedef struct intList{
 /*NOTE: In a lot of these functions, the nal File(s) nl and the
 variable list vl are only passed so if an ERROR
 occurs they can be appropriately freed*/
+
+/*Functions added (or modified) for the extension*/
+   void locateFunctions(nalFile *nf, vList *vl);
+   bool validFunction(char *fname, char *lpar);
+   bool isfname(char const *word);
+   instr nalFunc(nalFile *nf, vList *vl);
+/*Functions modified for the extension*/
+   void skipToMatchingBracket(nalFile *nf, vList *vl);
 
 /*Check argv*/
    void checkInput(int argc, char const *argv[]);
@@ -241,7 +237,7 @@ occurs they can be appropriately freed*/
    /*INC*/
       void incVar(nalFile *nf, vList *vl, char **varname);
    /*IFCOND*/
-      void skipToMatchingBracket(nalFile *nf, vList *vl);
+
       comp compStrings(nalFile *nf, vList *vl, char **strs);
       comp compNums(nalFile *nf, vList *vl, char **nums);
       comp compDoubles(double n1, double n2);

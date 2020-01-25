@@ -29,7 +29,7 @@ int main(void)
    for (i = 0; i < NEILLPAIRNUM; i++) {
       noises[i] = i+1;
    }
-   printf("Basic MVM Tests ... Start\n");
+   printf("Basic fMap Tests ... Start\n");
 
    /* Set up empty array */
    m = fMap_init();
@@ -73,6 +73,6 @@ int main(void)
    assert(m==NULL);
    assert(fMap_size(m)==0);
 
-   printf("Basic MVM Tests ... Stop\n");
+   printf("Basic fMap Tests ... Stop\n");
    return 0;
 }

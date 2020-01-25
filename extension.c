@@ -1,4 +1,4 @@
-#include "nal.h"
+#include "extension.h"
 
 int main(int argc, char const *argv[])
 {
@@ -17,6 +17,7 @@ int main(int argc, char const *argv[])
    /*Set file's name and tokenize the file*/
    nf->name = allocString(argv[1]);
    setupNalFile(nf, vl);
+   fMap_print(nf->fm);
    /*Run*/
    program(nf, vl);
    #ifndef INTERP
@@ -48,7 +49,7 @@ void test(void)
     */
    nalFile *nf;
    char wordsInTest1[WORDSINTEST1][TESTWORDSIZE] =
-   {"{", "PRINT", "\"Hello World! From test1\"", "}"};
+   {"MAIN", "{", "PRINT", "\"Hello World! From test1\"", "}"};
    int i, j, strCheck;
 
    nf = initNalFile();
@@ -62,13 +63,14 @@ void test(void)
    nf->name = allocString(TESTFILE1);
    setupNalFile(nf,NULL);
    assert(nf->totWords == WORDSINTEST1);
-   for (i = 0; i < WORDSINTEST1; i++) {
+
+   for (i = 1; i < WORDSINTEST1; i++) {
       j = strcmp(nf->words[i],wordsInTest1[i]);
       assert(j==0);
    }
 
    /*Testing wordStep*/
-   for (i = 1; i < WORDSINTEST1; i++) {
+   for (i = 2; i < WORDSINTEST1; i++) {
       wordStep(nf,NULL, 1);
       strCheck = strsame(nf->words[nf->currWord],wordsInTest1[i]);
       assert(strCheck);
@@ -100,7 +102,7 @@ void testTokenization(void)
    nalFile *testNal;
    int i, strCheck;
    char wordsInTest1[WORDSINTEST1][TESTWORDSIZE] =
-   {"{", "PRINT", "\"Hello World! From test1\"", "}"};
+   {"MAIN" , "{", "PRINT", "\"Hello World! From test1\"", "}"};
 
    /*Testing multiWordString*/
    assert(multiWordString("Hello")==FALSE);
@@ -117,7 +119,7 @@ void testTokenization(void)
    free(n);
 
    /*Testing wordLength*/
-   testFile = getFile(NULL, NULL, "test1.nal");
+   testFile = getFile(NULL, NULL, TESTFILE1);
    wordLengths = NULL;
    for (i = 0; i < WORDSINTEST1; i++) {
       assert(fscanf(testFile, "%s", testWord)==1);
@@ -127,7 +129,7 @@ void testTokenization(void)
    fclose(testFile);
 
    /*Testing getWordSizes*/
-   testFile = getFile(NULL,NULL,"test1.nal");
+   testFile = getFile(NULL,NULL,TESTFILE1);
    wordLengths = getWordSizes(NULL,NULL,testFile);
    assert(wordLengths->size==WORDSINTEST1);
    i = 0;
@@ -144,7 +146,7 @@ void testTokenization(void)
    fclose(testFile);
 
    /*Testing getWord*/
-   testFile = getFile(NULL, NULL, "test1.nal");
+   testFile = getFile(NULL, NULL, TESTFILE1);
    for (i = 0; i < WORDSINTEST1; i++) {
       getWord(NULL, NULL, testWord, testFile);
       strCheck = strsame(testWord,wordsInTest1[i]);
@@ -153,7 +155,7 @@ void testTokenization(void)
    fclose(testFile);
 
    /*Testing tokenizeFile*/
-   testFile = getFile(NULL, NULL, "test1.nal");
+   testFile = getFile(NULL, NULL, TESTFILE1);
    testNal = initNalFile();
    wordLengths = getWordSizes(NULL,NULL,testFile);
    tokenizeFile(testNal, NULL, testFile, wordLengths);
@@ -278,9 +280,9 @@ void testCheckSyntax(void)
    nf = initNalFile();
    nf->name = allocString(TESTCHECKSYNTAXFILE);
    setupNalFile(nf, NULL);
-   nf->currWord = 4;
+   nf->currWord = 5;
    varnames = checkSyntax(nf, NULL, syntax, IN2STRWORDS, VARSFROMIN2STR);
-   assert(nf->currWord == 9);
+   assert(nf->currWord == 10);
    #ifdef INTERP
    i = strcmp(varnames[0],"$STRONE");
    assert(i==0);
@@ -415,7 +417,7 @@ void testIfCond(void)
    nf = initNalFile();
    nf->name = allocString(TESTBRACKETSFILE);
    setupNalFile(nf,NULL);
-   nf->currWord = 18;
+   nf->currWord = 19;
    skipToMatchingBracket(nf, NULL);
    assert(nf->currWord == 33);
    terminateNalFile(&nf);
@@ -502,15 +504,15 @@ void testSet(void)
    nf = initNalFile();
    nf->name = allocString(TESTSETVARFILE);
    setupNalFile(nf, vl);
-   nf->currWord = 3;
+   nf->currWord = 4;
    setVariable(nf,vl);
-   nf->currWord = 6;
+   nf->currWord = 7;
    setVariable(nf,vl);
-   nf->currWord = 9;
+   nf->currWord = 10;
    setVariable(nf,vl);
-   nf->currWord = 12;
+   nf->currWord = 13;
    setVariable(nf,vl);
-   nf->currWord = 15;
+   nf->currWord = 16;
    setVariable(nf,vl);
    i = strcmp("Hello",vList_search(vl,"$A"));
    assert(i==0);
@@ -738,6 +740,7 @@ nalFile *initNalFile(void)
    nf->totWords = 0;
    nf->prev = NULL;
    nf->name=NULL;
+   nf->fm = fMap_init();
 
    return nf;
 }
@@ -755,6 +758,11 @@ void setupNalFile(nalFile *nf, vList *vl)
    wordLengths = getWordSizes(nf,vl,fp);
    tokenizeFile(nf, vl, fp, wordLengths);
    fclose(fp);
+   locateFunctions(nf, vl);
+   nf->currWord = fMap_search(nf->fm,MAIN);
+   if (nf->currWord == NOFUNCTIONFOUND) {
+      nalERROR(nf,vl,"No MAIN function found");
+   }
 }
 
 void terminateNalFile(nalFile **p)
@@ -765,9 +773,7 @@ void terminateNalFile(nalFile **p)
    if (p == NULL) {
       return;
    }
-
    nf = *p;
-
    if (nf == NULL) {
       return;
    }
@@ -777,6 +783,7 @@ void terminateNalFile(nalFile **p)
    }
    free(nf->words);
    free(nf->name);
+   fMap_free(&nf->fm);
    free(nf);
    *p = NULL;
 }
@@ -801,6 +808,42 @@ void wordStep(nalFile *nf, vList *vl, int s)
          "Word Index Out of Bounds (Maybe missing a closing '}'?)",
          nf->currWord);
    }
+}
+
+void locateFunctions(nalFile *nf, vList *vl)
+{
+   int size;
+
+   size = 0;
+   while (nf->currWord < nf->totWords-1) {
+      if (!validFunction(nf->words[nf->currWord],nf->words[nf->currWord+1])) {
+         indexERROR(nf,vl,"Expected Function Name followed by {",nf->currWord);
+      }
+      fMap_insert(nf->fm,nf->words[nf->currWord],nf->currWord+1);
+      /*Check if a new function has been added, if not that means two functions have the same name*/
+      if (size == fMap_size(nf->fm)) {
+         indexERROR(nf,vl,"A function with this name is already defined",nf->currWord);
+      }
+      size = fMap_size(nf->fm);
+      wordStep(nf,vl,2);
+      skipToMatchingBracket(nf,vl);
+      if (nf->currWord < nf->totWords-1) {
+         wordStep(nf,vl,1);
+      }
+   }
+}
+
+bool validFunction(char *fname, char *lpar)
+{
+
+   if (!strsame("{",lpar)) {
+      return FALSE;
+   }
+   if (!isfname(fname)) {
+      return FALSE;
+   }
+
+   return TRUE;
 }
 
 void program(nalFile *nf, vList *vl)
@@ -854,6 +897,9 @@ void instruct(nalFile *nf, vList *vl)
    if (nalSet(nf,vl)==EXECUTED) {
       return;
    }
+   if (nalFunc(nf,vl)==EXECUTED) {
+      return;
+   }
 
    indexERROR(nf,vl, "Word doesn't match any syntax rule",nf->currWord);
 }
@@ -891,7 +937,7 @@ char **checkSyntax(nalFile *nf, vList *vl,
          #endif
       } else if (!strsame(nf->words[nf->currWord], syntax[i])) {
          #ifdef INTERP
-         freeArray(varcons,varconsToBeFound);
+         freeArray(varcons,varconsFound);
          #endif
          syntaxERROR(nf,vl, syntax[i-1], syntax[i], nf->currWord);
       }
@@ -932,6 +978,9 @@ bool correctVARCON(char *varconType, char *word)
    }
    if (strsame(varconType,"NUM")) {
       return isnum(word);
+   }
+   if (strsame(varconType,"FNAME")) {
+      return isfname(word);
    }
    return FALSE;
 }
@@ -1198,6 +1247,7 @@ instr nalIfcond(nalFile *nf, vList *vl)
       wordStep(nf,vl,1);
       if (condition==EXECFAIL) {
          skipToMatchingBracket(nf,vl);
+         wordStep(nf,vl,1);
       } else {
          instrs(nf,vl);
       }
@@ -1218,7 +1268,9 @@ void skipToMatchingBracket(nalFile *nf, vList *vl)
       if (strsame(nf->words[nf->currWord],"}" )) {
          brackets--;
       }
-      wordStep(nf,vl,1);
+      if (brackets>0) {
+         wordStep(nf,vl,1);
+      }
    }
 
 }
@@ -1448,6 +1500,34 @@ void setVariable(nalFile *nf, vList *vl)
    free(val);
 }
 
+instr nalFunc(nalFile *nf, vList *vl)
+{
+   char syntax[MAXSYNTAXWORDS][MAXSYNTAXWORDSIZE] =
+      {"FUNCTION", "(", "FNAME", ")"};
+   char **fname;
+   #ifdef INTERP
+   int currWord;
+   #endif
+
+   if (strsame(nf->words[nf->currWord], syntax[0])) {
+      wordStep(nf,vl,1);
+      fname = checkSyntax(nf, vl, syntax, FUNCWORDS, VARSFROMFUNC);
+      #ifdef INTFUNC
+      currWord = nf->currWord;
+      nf->currWord = fMap_search(nf->fm,fname[0]);
+      freeArray(fname,VARSFROMFUNC);
+      if (nf->currWord == NOFUNCTIONFOUND) {
+         indexERROR(nf,vl,"Calling nonexistent function",currWord-2);
+      }
+      printf("Saved Index: %d, Going to: %d\n", currWord, nf->currWord);
+      program(nf,vl);
+      nf->currWord = currWord;
+      #endif
+      return EXECUTED;
+   }
+   return NOTEXECUTED;
+}
+
 bool validSet(char *name, char *val)
 {
    if (isnumvar(name) && isstr(val) ) {
@@ -1570,6 +1650,18 @@ bool isnum(char const *word)
       return TRUE;
    }
    return FALSE;
+}
+
+bool isfname(char const *word)
+{
+   int i;
+
+   for (i = 0; i < (int)strlen(word); i++) {
+      if (!isupper(word[i]) && !isnumber(word[i])) {
+         return FALSE;
+      }
+   }
+   return TRUE;
 }
 
 /*Given a word that returns TRUE from isstrcon, output the string

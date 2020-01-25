@@ -1,0 +1,11 @@
+MAIN {
+
+
+      RND ( %A )
+      FUNCTION ( F1 )
+
+}
+
+F1 {
+   FILE "extestf2.nal"
+}

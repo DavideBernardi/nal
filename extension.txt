@@ -6,6 +6,47 @@ Functions seemed to be the best thing for those goals.
 
 How it works:
 
-Before any parsing or interpreting happens, we run findFunctions()
+Before any parsing or interpreting happens, we run locateFunctions() from inside setupNalFile().
 
-Which simply finds all the functions in the file
+This function runs through the file looking for a syntax of this form:
+
+Word[i] : <FNAME>
+Word[i+1] : "{"
+Increase i until a matching "}" is found
+Repeat until end of file is reached.
+
+Where <FNAME> = [A-Z,0-9]+ represents the function names
+
+Each new function that is found is stored in a Function Map along with where it is in the file, all the code for the Function Maps is in fMap.c.
+Similarly to the code for the Variable List, fMap.c is a modified version of our mvm assignment. Unlike the Variable List though, fMap.c uses a hash table to store functions.
+I chose to use a hash table for this in order to showcase my programming abilities, in real life this might not have been the most efficient data structure for this task.
+The code in fMap.c was tested in fMap_test.c and can be run with the fMap.mk makefile with the rule "memleaks".
+
+Once all Functions have been found, the word index is set to the index of the default function MAIN (If there is no MAIN function we terminate and give an ERROR).
+
+Now, in order to call a function the syntax is as such:
+
+<FUNCTION> = "FUNCTION" "(" <FNAME> ")"
+
+During a function call, we store the current word index, then we get the function's word index from the Function Map, and then we simply run <PROG> from that word index.
+After we exit the <PROG> call we set the word index back to the one we stored at the start.
+
+Functions are not global, each file has its own set of functions.
+If a function is defined twice, we terminate and give an ERROR.
+A function can have the same name as a syntax rule.
+
+All errors I could think of are handled properly with the correct freeing and error messages.
+Except the <JUMP> issue already pointed out in the main assignment, here it's even worse since the user could in theory <JUMP> from one function to another.
+
+
+
+
+To showcase this new feature, I have rewritten escape211 in a single file: exescape211.nal, the only other file it uses is exmunge.nal. I could have had a MUNGE function but I wanted to show that this feature works properly even in conjunction with <FILE> calls.
+
+(*) = ne || nw || se || sw
+For each lab(*).nal file I wrote a LAB(*)INIT and a LAB(*) function, LAB(*)INIT does the initial printing for when going to a corner of the lab to another and LAB(*) does the rest.
+
+PRO: Using Recursive calls I was able to get rid of all the <JUMP> calls which as we know can lead to weird errors.
+
+CON: I had to write two functions for each file, and even that is not enough since in its current state exescape211.nal still differs a little from escape211.nal
+(If we are in LABNE or LABNW and we reach the end of the function, LABNEINIT or LABNWINIT are called respectively, so the initial text $NE or $NW is printed again, whereas in escape211.nal we <JUMP> to right after the <PRINT> command so that doesn't happen ).

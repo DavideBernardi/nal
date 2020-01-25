@@ -8,7 +8,7 @@
 
 /*Fraction of the array that needs to be filled before triggering the reallocation*/
 #define MAXFRACTIONFILLED 0.6
-#define MAXWORDSIZE 50
+
 /*To print each cell need 5 extra chars of space for "()[] "*/
 #define EXTRACHARS 5
 /*First prime used for the initialization of the array*/
@@ -17,7 +17,12 @@
 #define MAGICNUMBER1 5381
 #define MAGICNUMBER2 33
 
+/*In theory this should define bool only if it hasn't been defined before
+(as long as the other definitions of bool have this same #include guard)*/
+#ifndef BOOL
+#define BOOL
 typedef enum {FALSE, TRUE} bool;
+#endif
 typedef unsigned long ulong;
 
 struct fMapPair {
@@ -36,12 +41,15 @@ typedef struct fMap fMap;
 fMap* fMap_init(void);
 /* Number of fname/index pairs stored */
 int fMap_size(fMap* m);
-/* Insert one fname/index pair */
+/* Insert one fname/index pair
+If two functions have the same name, the second one doesn't get stored */
 void fMap_insert(fMap* m, char* fname, int data);
 /* Return the corresponding index for a fname
 Since we need this for the index of a word in a nalFile,
 we use -1 as the value to be returned in case of error*/
 int fMap_search(fMap* m, char* fname);
+
+void fMap_print(fMap* m);
 /* Free & set p to NULL */
 void fMap_free(fMap** p);
 

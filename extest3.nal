@@ -1,0 +1,13 @@
+MAIN {
+   PRINT "Input 2 Strings:"
+   IN2STR ( $STRONE , $STRTWO )
+   PRINT "Input 2 Strings:"
+   IN2STR ( $STRTWO , $STRTHREE )
+   PRINT "Input a Number:"
+   INNUM ( %NUMONE )
+   PRINT "Input a Number:"
+   INNUM ( %NUMONE )
+   PRINT $STRONE
+   PRINT $STRTWO
+   PRINT %NUMONE
+}

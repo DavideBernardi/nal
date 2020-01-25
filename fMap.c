@@ -117,6 +117,16 @@ void fMap_free(fMap** p)
    *p = NULL;
 }
 
+void fMap_print(fMap *m)
+{
+   int i;
+   for (i = 0; i < (int)m->arrSize; i++) {
+      if (m->array[i] != NULL) {
+         printf("Function: %s | Index: %d\n",m->array[i]->fname, m->array[i]->index);
+      }
+   }
+}
+
 /*Input is always a prime number, otherwise behaviour is undefined.
 This is not checked simply because in my code this function is always
 guaranteed to receive a prime number, and checking this can be extremely slow*/

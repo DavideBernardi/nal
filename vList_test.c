@@ -23,7 +23,7 @@ int main(void)
    "8765.2345", "-8761234", "76", "867586","32542.756", "987.23444445", "0.999999", "-5", "354673.4",
    "67.76767", "1427457", "9", "10101", "876",};
 
-   printf("Basic MVM Tests ... Start\n");
+   printf("Basic vList Tests ... Start\n");
    /* Set up empty array */
    vl1 = vList_init();
    assert(vl1 != NULL);
@@ -42,7 +42,7 @@ int main(void)
 
    vList_free(&vl1);
    assert(vl1==NULL);
-   printf("Basic MVM Tests ... Stop\n");
+   printf("Basic vList Tests ... Stop\n");
 
    return 0;
 }
