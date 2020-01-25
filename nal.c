@@ -877,8 +877,7 @@ char **checkSyntax(nalFile *nf, vList *vl,
    #ifdef INTERP
    varconsFound = 0;
    #else
-   /*Have to do this weird thing otherwise when compiling without -DINTERP
-   varconsToBeFound is a unused variable*/
+   /*Have to allocate and free 'varcons' even when compiling without -DINTERP or varconsToBeFound gets flagged as an unused variable*/
    free(varcons);
    varcons = NULL;
    #endif
@@ -891,7 +890,7 @@ char **checkSyntax(nalFile *nf, vList *vl,
          #endif
       } else if (!strsame(nf->words[nf->currWord], syntax[i])) {
          #ifdef INTERP
-         freeArray(varcons,varconsToBeFound);
+         freeArray(varcons,varconsFound);
          #endif
          syntaxERROR(nf,vl, syntax[i-1], syntax[i], nf->currWord);
       }
