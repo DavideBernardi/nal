@@ -117,7 +117,7 @@ void testTokenization(void)
    free(n);
 
    /*Testing wordLength*/
-   testFile = getFile(NULL, NULL, "test1.nal");
+   testFile = getFile(NULL, NULL, TESTFILE1);
    wordLengths = NULL;
    for (i = 0; i < WORDSINTEST1; i++) {
       assert(fscanf(testFile, "%s", testWord)==1);
@@ -127,7 +127,7 @@ void testTokenization(void)
    fclose(testFile);
 
    /*Testing getWordSizes*/
-   testFile = getFile(NULL,NULL,"test1.nal");
+   testFile = getFile(NULL,NULL,TESTFILE1);
    wordLengths = getWordSizes(NULL,NULL,testFile);
    assert(wordLengths->size==WORDSINTEST1);
    i = 0;
@@ -144,7 +144,7 @@ void testTokenization(void)
    fclose(testFile);
 
    /*Testing getWord*/
-   testFile = getFile(NULL, NULL, "test1.nal");
+   testFile = getFile(NULL, NULL, TESTFILE1);
    for (i = 0; i < WORDSINTEST1; i++) {
       getWord(NULL, NULL, testWord, testFile);
       strCheck = strsame(testWord,wordsInTest1[i]);
@@ -153,7 +153,7 @@ void testTokenization(void)
    fclose(testFile);
 
    /*Testing tokenizeFile*/
-   testFile = getFile(NULL, NULL, "test1.nal");
+   testFile = getFile(NULL, NULL, TESTFILE1);
    testNal = initNalFile();
    wordLengths = getWordSizes(NULL,NULL,testFile);
    tokenizeFile(testNal, NULL, testFile, wordLengths);
