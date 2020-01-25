@@ -1,5 +1,6 @@
 /*
 NOTES:
+The explanation fo this extension and all the notes about it are in extension.txt
 */
 
 #include <stdio.h>
