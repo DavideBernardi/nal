@@ -4,7 +4,7 @@ DFLAGS = -Wall -Wextra -pedantic -ansi -g3 -lm
 CC = clang
 BASE = nal
 NAME = extension
-VARFILE = vList
+VARFILE = exvList
 FUNCFILE = fMap
 BEXECS = exparse exinterp
 SEXECS = exparse_s exinterp_s
@@ -16,19 +16,19 @@ INTERP = -DINTERP -DINTFILE -DINTABORT -DINTIN2STR -DINTINNUM -DINTJUMP -DINTPRI
 
 all : $(BEXECS)
 
-exparse : $(NAME).c $(EXTRACHECKS)
+exparse : $(NAME).c $(NAME).h $(EXTRACHECKS)
 		$(CC) $(NAME).c $(EXTRAFILES) $(CFLAGS) -o $@
-exparse_s : $(NAME).c $(EXTRACHECKS)
+exparse_s : $(NAME).c $(NAME).h $(EXTRACHECKS)
 		$(CC) $(NAME).c $(EXTRAFILES) $(SFLAGS) -o $@
-exparse_d : $(NAME).c $(EXTRACHECKS)
+exparse_d : $(NAME).c $(NAME).h $(EXTRACHECKS)
 		$(CC) $(NAME).c $(EXTRAFILES) $(DFLAGS) -o $@
 
 
-exinterp : $(NAME).c $(EXTRACHECKS)
+exinterp : $(NAME).c $(NAME).h $(EXTRACHECKS)
 		$(CC) $(NAME).c $(EXTRAFILES) $(CFLAGS) -o $@ $(INTERP)
-exinterp_s : $(NAME).c $(EXTRACHECKS)
+exinterp_s : $(NAME).c $(NAME).h $(EXTRACHECKS)
 		$(CC) $(NAME).c $(EXTRAFILES) $(SFLAGS) -o $@ $(INTERP)
-exinterp_d : $(NAME).c $(EXTRACHECKS)
+exinterp_d : $(NAME).c $(NAME).h $(EXTRACHECKS)
 		$(CC) $(NAME).c $(EXTRAFILES) $(DFLAGS) -o $@ $(INTERP)
 
 

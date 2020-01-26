@@ -1,4 +1,4 @@
-MAIN {
+MAIN ( ) {
 
    PRINT "Hello World! From test1"
 

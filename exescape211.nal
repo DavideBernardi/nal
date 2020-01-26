@@ -1,10 +1,10 @@
-LABNEINIT
+LABNEINIT ( )
 {
    PRINT $NE
    FUNCTION ( LABNE )
 }
 
-LABNE
+LABNE ( )
 {
 
    IN2STR ( $A , $B )
@@ -29,13 +29,13 @@ LABNE
    FUNCTION ( LABNE )
 }
 
-LABNWINIT
+LABNWINIT ( )
 {
    PRINT $NW
    FUNCTION ( LABNW )
 }
 
-LABNW
+LABNW ( )
 {
 
 
@@ -63,7 +63,7 @@ LABNW
    FUNCTION ( LABNW )
 }
 
-MAIN
+MAIN ( )
 {
    $SW = "You're in the south-west corner of 2.11 Other parts of the lab lay to the North and East."
    $SWCHEKSW = "Carl's in here, relaxing and leaning against a wall. It looks like he may be obscuring something, but you can't see what it is."
@@ -106,7 +106,7 @@ MAIN
    FUNCTION ( LABSWINIT )
 }
 
-LABSEINIT
+LABSEINIT ( )
 {
    PRINTN $SE
    IFEQUAL ( %LOCKED , 1 ) {
@@ -126,7 +126,7 @@ LABSEINIT
    FUNCTION ( LABSE )
 }
 
-LABSE
+LABSE ( )
 {
    IN2STR ( $A , $B )
    FILE "exmunge.nal"
@@ -200,7 +200,7 @@ LABSE
    FUNCTION ( LABSEINIT )
 }
 
-LABSWINIT
+LABSWINIT ( )
 {
    PRINTN $SW
    IFEQUAL ( $WHERECHEK , "SW" ) {
@@ -213,7 +213,7 @@ LABSWINIT
    FUNCTION ( LABSW )
 }
 
-LABSW
+LABSW ( )
 {
    IN2STR ( $A , $B )
    FILE "exmunge.nal"

@@ -10,12 +10,12 @@ The explanation fo this extension and all the notes about it are in extension.tx
 #include <time.h>
 #include <ctype.h>
 
-#include "vList.h"
+#include "exvList.h"
 #include "fMap.h"
 
 /*Used in testing*/
 #define TESTFILE1 "extest2.nal"
-#define WORDSINTEST1 5
+#define WORDSINTEST1 7
 #define TESTWORDSIZE 1000
 #define TESTCHECKSYNTAXFILE "extest3.nal"
 #define INCTESTSTRSIZE 10000
@@ -134,7 +134,7 @@ occurs they can be appropriately freed*/
 
 /*Functions added (or modified) for the extension*/
    void locateFunctions(nalFile *nf, vList *vl);
-   bool validFunction(char *fname, char *lpar);
+   bool validFunction(nalFile *nf, vList *vl);
    bool isfname(char const *word);
    instr nalFunc(nalFile *nf, vList *vl);
 /*Functions modified for the extension*/

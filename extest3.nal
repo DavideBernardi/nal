@@ -1,4 +1,4 @@
-MAIN {
+MAIN ( ) {
    PRINT "Input 2 Strings:"
    IN2STR ( $STRONE , $STRTWO )
    PRINT "Input 2 Strings:"

@@ -14,19 +14,19 @@ INTERP = -DINTERP -DINTFILE -DINTABORT -DINTIN2STR -DINTINNUM -DINTJUMP -DINTPRI
 
 all : $(BEXECS)
 
-parse : $(BASE).c $(EXTRACHECKS)
+parse : $(BASE).c $(BASE).h $(EXTRACHECKS)
 		$(CC) $(BASE).c $(EXTRAFILES) $(CFLAGS) -o $@
-parse_s : $(BASE).c $(EXTRACHECKS)
+parse_s : $(BASE).c $(BASE).h $(EXTRACHECKS)
 		$(CC) $(BASE).c $(EXTRAFILES) $(SFLAGS) -o $@
-parse_d : $(BASE).c $(EXTRACHECKS)
+parse_d : $(BASE).c $(BASE).h $(EXTRACHECKS)
 		$(CC) $(BASE).c $(EXTRAFILES) $(DFLAGS) -o $@
 
 
-interp : $(BASE).c $(EXTRACHECKS)
+interp : $(BASE).c $(BASE).h $(EXTRACHECKS)
 		$(CC) $(BASE).c $(EXTRAFILES) $(CFLAGS) -o $@ $(INTERP)
-interp_s : $(BASE).c $(EXTRACHECKS)
+interp_s : $(BASE).c $(BASE).h $(EXTRACHECKS)
 		$(CC) $(BASE).c $(EXTRAFILES) $(SFLAGS) -o $@ $(INTERP)
-interp_d : $(BASE).c $(EXTRACHECKS)
+interp_d : $(BASE).c $(BASE).h $(EXTRACHECKS)
 		$(CC) $(BASE).c $(EXTRAFILES) $(DFLAGS) -o $@ $(INTERP)
 
 

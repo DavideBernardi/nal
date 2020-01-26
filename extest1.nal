@@ -1,4 +1,4 @@
-PRINT {
+PRINT ( ) {
    PRINT "Input 2 Strings:"
    IN2STR ( $STRONE , $STRTWO )
    PRINT "Input 2 Strings:"
@@ -12,7 +12,7 @@ PRINT {
    PRINT %NUMONE
 }
 
-MAIN {
+MAIN ( ) {
    PRINTN "Testing PrintN | "
    PRINT "Testing Numbers Printing:"
    PRINT 325.123
@@ -25,14 +25,14 @@ MAIN {
 
 }
 
-RANDOM {
+RANDOM ( ) {
 
    RND ( %N )
    PRINTN "A Random Number: "
    PRINT %N
 }
 
-SETSTUFF {
+SETSTUFF ( ) {
    $A = "Hello"
    $B = $A
    %A = 17.6
@@ -46,7 +46,7 @@ SETSTUFF {
    PRINT %B
 }
 
-IFEQUALS {
+IFEQUALS ( ) {
    $A = "Hello"
    IFEQUAL ( "Hello" , $A ) {
       PRINT "Equal works 1"

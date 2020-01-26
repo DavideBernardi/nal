@@ -49,7 +49,7 @@ void test(void)
     */
    nalFile *nf;
    char wordsInTest1[WORDSINTEST1][TESTWORDSIZE] =
-   {"MAIN", "{", "PRINT", "\"Hello World! From test1\"", "}"};
+   {"MAIN", "(", ")", "{", "PRINT", "\"Hello World! From test1\"", "}"};
    int i, j, strCheck;
 
    nf = initNalFile();
@@ -70,6 +70,7 @@ void test(void)
    }
 
    /*Testing wordStep*/
+   nf->currWord = 1;
    for (i = 2; i < WORDSINTEST1; i++) {
       wordStep(nf,NULL, 1);
       strCheck = strsame(nf->words[nf->currWord],wordsInTest1[i]);
@@ -102,7 +103,7 @@ void testTokenization(void)
    nalFile *testNal;
    int i, strCheck;
    char wordsInTest1[WORDSINTEST1][TESTWORDSIZE] =
-   {"MAIN" , "{", "PRINT", "\"Hello World! From test1\"", "}"};
+   {"MAIN" , "(",")" ,"{", "PRINT", "\"Hello World! From test1\"", "}"};
 
    /*Testing multiWordString*/
    assert(multiWordString("Hello")==FALSE);
@@ -280,9 +281,9 @@ void testCheckSyntax(void)
    nf = initNalFile();
    nf->name = allocString(TESTCHECKSYNTAXFILE);
    setupNalFile(nf, NULL);
-   nf->currWord = 5;
+   nf->currWord = 7;
    varnames = checkSyntax(nf, NULL, syntax, IN2STRWORDS, VARSFROMIN2STR);
-   assert(nf->currWord == 10);
+   assert(nf->currWord == 12);
    #ifdef INTERP
    i = strcmp(varnames[0],"$STRONE");
    assert(i==0);
@@ -417,9 +418,9 @@ void testIfCond(void)
    nf = initNalFile();
    nf->name = allocString(TESTBRACKETSFILE);
    setupNalFile(nf,NULL);
-   nf->currWord = 19;
+   nf->currWord = 21;
    skipToMatchingBracket(nf, NULL);
-   assert(nf->currWord == 33);
+   assert(nf->currWord == 35);
    terminateNalFile(&nf);
 
    /*Test compDoubles()*/
@@ -504,25 +505,25 @@ void testSet(void)
    nf = initNalFile();
    nf->name = allocString(TESTSETVARFILE);
    setupNalFile(nf, vl);
-   nf->currWord = 4;
+   nf->currWord = 6;
    setVariable(nf,vl);
-   nf->currWord = 7;
+   nf->currWord = 9;
    setVariable(nf,vl);
-   nf->currWord = 10;
+   nf->currWord = 12;
    setVariable(nf,vl);
-   nf->currWord = 13;
+   nf->currWord = 15;
    setVariable(nf,vl);
-   nf->currWord = 16;
+   nf->currWord = 18;
    setVariable(nf,vl);
-   i = strcmp("Hello",vList_search(vl,"$A"));
+   i = strcmp("Hello",vList_scopedSearch(vl,"$A"));
    assert(i==0);
-   i = strcmp(vList_search(vl,"$B"),vList_search(vl,"$A"));
+   i = strcmp(vList_scopedSearch(vl,"$B"),vList_scopedSearch(vl,"$A"));
    assert(i==0);
-   i = strcmp(vList_search(vl,"%A"),"17.6");
+   i = strcmp(vList_scopedSearch(vl,"%A"),"17.6");
    assert(i==0);
-   i = strcmp(vList_search(vl,"%A"),vList_search(vl,"%B"));
+   i = strcmp(vList_scopedSearch(vl,"%A"),vList_scopedSearch(vl,"%B"));
    assert(i==0);
-   i = strcmp(vList_search(vl,"$C"),"17.8");
+   i = strcmp(vList_scopedSearch(vl,"$C"),"17.8");
    assert(i==0);
    terminateNalFile(&nf);
    vList_free(&vl);
@@ -763,6 +764,10 @@ void setupNalFile(nalFile *nf, vList *vl)
    if (nf->currWord == NOFUNCTIONFOUND) {
       nalERROR(nf,vl,"No MAIN function found");
    }
+   if (!strsame(nf->words[nf->currWord+1],")")) {
+      nalERROR(nf,vl,"MAIN must be of the form 'MAIN ( )' - i.e. it has no input variables");
+   }
+   wordStep(nf,vl,2);
 }
 
 void terminateNalFile(nalFile **p)
@@ -812,20 +817,25 @@ void wordStep(nalFile *nf, vList *vl, int s)
 
 void locateFunctions(nalFile *nf, vList *vl)
 {
-   int size;
+   int size, findex;
 
    size = 0;
    while (nf->currWord < nf->totWords-1) {
-      if (!validFunction(nf->words[nf->currWord],nf->words[nf->currWord+1])) {
-         indexERROR(nf,vl,"Expected Function Name followed by {",nf->currWord);
+      findex = nf->currWord;
+      if (!validFunction(nf,vl)) {
+         indexERROR(nf,vl,
+            "Expected Function Name followed by ( <VAR> , <VAR> , ... )",
+            findex);
       }
-      fMap_insert(nf->fm,nf->words[nf->currWord],nf->currWord+1);
+      fMap_insert(nf->fm,nf->words[findex],findex+1);
       /*Check if a new function has been added, if not that means two functions have the same name*/
       if (size == fMap_size(nf->fm)) {
-         indexERROR(nf,vl,"A function with this name is already defined",nf->currWord);
+         indexERROR(nf,vl,
+            "A function with this name is already defined",
+            nf->currWord);
       }
       size = fMap_size(nf->fm);
-      wordStep(nf,vl,2);
+      wordStep(nf,vl,1);
       skipToMatchingBracket(nf,vl);
       if (nf->currWord < nf->totWords-1) {
          wordStep(nf,vl,1);
@@ -833,13 +843,33 @@ void locateFunctions(nalFile *nf, vList *vl)
    }
 }
 
-bool validFunction(char *fname, char *lpar)
+bool validFunction(nalFile *nf, vList *vl)
 {
 
-   if (!strsame("{",lpar)) {
+   if (!isfname(nf->words[nf->currWord])) {
       return FALSE;
    }
-   if (!isfname(fname)) {
+   wordStep(nf,vl,1);
+   if (!strsame("(",nf->words[nf->currWord])) {
+      return FALSE;
+   }
+   wordStep(nf,vl,1);
+
+   while (!strsame(")",nf->words[nf->currWord])) {
+      if (!isvar(nf->words[nf->currWord])) {
+         return FALSE;
+      }
+      wordStep(nf,vl,1);
+      if (!strsame(")",nf->words[nf->currWord])) {
+         if (!strsame(",",nf->words[nf->currWord])) {
+            return FALSE;
+         }
+      wordStep(nf,vl,1);
+      }
+   }
+
+   wordStep(nf,vl,1);
+   if (!strsame(nf->words[nf->currWord],"{")) {
       return FALSE;
    }
 
@@ -1029,7 +1059,7 @@ instr nalAbort(nalFile *nf, vList *vl)
 {
    if (strsame(nf->words[nf->currWord], "ABORT")) {
       #ifdef INTABORT
-      vList_free(&vl);
+      vList_freeAll(vl);
       terminateAllNalFiles(nf);
       exit(EXIT_SUCCESS);
       #endif
@@ -1190,7 +1220,7 @@ void print(nalFile *nf, vList *vl, char *varcon)
       printThis = allocString(varcon);
    }
    if (isvar(varcon)) {
-      var = vList_search(vl, varcon);
+      var = vList_scopedSearch(vl, varcon);
       if (var == NULL) {
          variableERROR(nf, vl,
             "Trying to print uninitialized variable",varcon,nf->currWord);
@@ -1437,7 +1467,7 @@ void incVar(nalFile *nf, vList *vl, char **varname)
    char *val, *newVal;
    double num;
 
-   val = vList_search(vl, varname[0]);
+   val = vList_scopedSearch(vl, varname[0]);
    if (sscanf(val,"%lf",&num)!=1) {
       freeArray(varname, VARSFROMINC);
       indexERROR(nf,vl,
@@ -1487,7 +1517,7 @@ void setVariable(nalFile *nf, vList *vl)
    if (isstrcon(valstr)) {
       val = getString(valstr);
    }else if (isvar(valstr)) {
-      val = allocString(vList_search(vl,valstr));
+      val = allocString(vList_scopedSearch(vl,valstr));
    } else if (isnumcon(valstr)) {
       val = allocString(valstr);
    }
@@ -1519,7 +1549,7 @@ instr nalFunc(nalFile *nf, vList *vl)
       if (nf->currWord == NOFUNCTIONFOUND) {
          indexERROR(nf,vl,"Calling nonexistent function",currWord-2);
       }
-      printf("Saved Index: %d, Going to: %d\n", currWord, nf->currWord);
+
       program(nf,vl);
       nf->currWord = currWord;
       #endif
@@ -1733,7 +1763,7 @@ char *extractStr(vList *vl, char *name)
    if (isstrcon(name)) {
       val = getString(name);
    }else{
-      temp = vList_search(vl, name);
+      temp = vList_scopedSearch(vl, name);
       if (temp == NULL) {
          return NULL;
 
@@ -1756,7 +1786,7 @@ double extractNum(vList *vl, char *name, bool *error)
       }
    }
    if (isnumvar(name)) {
-      val = vList_search(vl, name);
+      val = vList_scopedSearch(vl, name);
       if (val == NULL) {
          *error = TRUE;
          return INITERROR;
@@ -1832,7 +1862,7 @@ void tokenizeERROR(nalFile *nf, vList *vl, char const *file, char const *msg)
       msg, file);
 
    fprintf(stderr, "%s", errorLine);
-   vList_free(&vl);
+   vList_freeAll(vl);
    terminateAllNalFiles(nf);
    free(errorLine);
    exit(EXIT_FAILURE);
@@ -1854,7 +1884,7 @@ void nalERROR(nalFile *nf, vList *vl, char* const msg)
       "ERROR MESSAGE: %s\nError occurred in file \"%s\"\nTERMINATING . . .\n",
       msg, nf->name);
 
-   vList_free(&vl);
+   vList_freeAll(vl);
    terminateAllNalFiles(nf);
    fprintf(stderr, "%s", errorLine);
    free(errorLine);
@@ -1878,7 +1908,7 @@ void indexERROR(nalFile *nf, vList *vl, char* const msg, int index)
       "ERROR MESSAGE: %s\nError occurred at index %d of file \"%s\"\nTERMINATING . . .\n",
       msg, index,nf->name);
 
-   vList_free(&vl);
+   vList_freeAll(vl);
    terminateAllNalFiles(nf);
    fprintf(stderr, "%s", errorLine);
    free(errorLine);
@@ -1905,7 +1935,7 @@ void syntaxERROR(nalFile *nf, vList *vl,char const *prevWord,
       "SYNTAX ERROR: Expected %s after %s at index %d in file \"%s\"\n",
       expWord, prevWord, index,nf->name);
 
-   vList_free(&vl);
+   vList_freeAll(vl);
    terminateAllNalFiles(nf);
    fprintf(stderr, "%s", errorLine);
    free(errorLine);
@@ -1932,7 +1962,7 @@ void variableERROR(nalFile *nf, vList *vl, char const *msg,
       "ERROR MESSAGE: %s\nAbout Variable %s in file \"%s\" around index %d\nTERMINATING . . .\n",
       msg,name,nf->name,index);
 
-   vList_free(&vl);
+   vList_freeAll(vl);
    terminateAllNalFiles(nf);
    fprintf(stderr, "%s", errorLine);
    free(errorLine);
