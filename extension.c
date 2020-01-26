@@ -17,11 +17,12 @@ int main(int argc, char const *argv[])
    /*Set file's name and tokenize the file*/
    nf->name = allocString(argv[1]);
    setupNalFile(nf, vl);
-   fMap_print(nf->fm);
+   /*fMap_print(nf->fm);*/
    /*Run*/
-   program(nf, vl);
    #ifndef INTERP
-   printf("Parsed OK\n");
+   parseAllFunctions(nf,vl);
+   #else
+   program(nf, vl);
    #endif
    /*Terminate*/
    terminateNalFile(&nf);
@@ -754,20 +755,21 @@ void setupNalFile(nalFile *nf, vList *vl)
 {
    FILE *fp;
    intList *wordLengths;
+   fMapCell *cell;
 
    fp = getFile(nf,vl,nf->name);
    wordLengths = getWordSizes(nf,vl,fp);
    tokenizeFile(nf, vl, fp, wordLengths);
    fclose(fp);
    locateFunctions(nf, vl);
-   nf->currWord = fMap_search(nf->fm,MAIN);
-   if (nf->currWord == NOFUNCTIONFOUND) {
+   cell = fMap_search(nf->fm,MAIN);
+   if (cell == NULL) {
       nalERROR(nf,vl,"No MAIN function found");
    }
-   if (!strsame(nf->words[nf->currWord+1],")")) {
-      nalERROR(nf,vl,"MAIN must be of the form 'MAIN ( )' - i.e. it has no input variables");
+   if (cell->varTot!=0) {
+      nalERROR(nf,vl,"MAIN must be of the form 'MAIN ( )' - i.e. No input variables");
    }
-   wordStep(nf,vl,2);
+   nf->currWord = cell->index;
 }
 
 void terminateNalFile(nalFile **p)
@@ -817,17 +819,21 @@ void wordStep(nalFile *nf, vList *vl, int s)
 
 void locateFunctions(nalFile *nf, vList *vl)
 {
-   int size, findex;
+   int size, findex, varTot;
+   char **vars;
 
    size = 0;
    while (nf->currWord < nf->totWords-1) {
       findex = nf->currWord;
       if (!validFunction(nf,vl)) {
          indexERROR(nf,vl,
-            "Expected Function Name followed by ( <VAR> , <VAR> , ... )",
+            "Expected <FNAME> followed by (",
             findex);
       }
-      fMap_insert(nf->fm,nf->words[findex],findex+1);
+
+      vars = getVars(nf,vl,&varTot);
+      wordStep(nf,vl,1);
+      fMap_insert(nf->fm,nf->words[findex],nf->currWord, vars, varTot);
       /*Check if a new function has been added, if not that means two functions have the same name*/
       if (size == fMap_size(nf->fm)) {
          indexERROR(nf,vl,
@@ -835,12 +841,61 @@ void locateFunctions(nalFile *nf, vList *vl)
             nf->currWord);
       }
       size = fMap_size(nf->fm);
+      checkWord(nf,vl,"{","Expected '{' after Function Definition");
       wordStep(nf,vl,1);
       skipToMatchingBracket(nf,vl);
       if (nf->currWord < nf->totWords-1) {
          wordStep(nf,vl,1);
       }
    }
+}
+
+char **getVars(nalFile *nf, vList *vl, int *varTot)
+{
+   int startIndex, currVars;
+
+   startIndex = nf->currWord;
+   currVars = 0;
+
+   while (!strsame(nf->words[nf->currWord],")")) {
+      if (!isvar(nf->words[nf->currWord])) {
+         indexERROR(nf,vl,
+            "Expected <VAR> as part of Function Definition",
+            nf->currWord);
+      }
+      currVars++;
+      wordStep(nf,vl,1);
+      if (!strsame(")",nf->words[nf->currWord])) {
+         checkWord(nf,vl,",","Expected ',' in between <VAR>s inside a Function Definition");
+      wordStep(nf,vl,1);
+      }
+   }
+
+   *varTot = currVars;
+   if (*varTot == 0) {
+      return NULL;
+   }
+
+   nf->currWord = startIndex;
+   return allocateVars(nf,vl,*varTot);
+}
+
+char **allocateVars(nalFile *nf, vList *vl, int varTot)
+{
+   int i;
+   char ** vars;
+
+   vars = (char **)allocate(varTot*sizeof(char *), "Function Variables Array");
+
+   nf->currWord-=2;
+   for (i = 0; i < varTot; i++) {
+      nf->currWord+=2;
+      vars[i] = (char *)allocate((strlen(nf->words[nf->currWord])+1)*sizeof(char),"Function Variable");
+      strcpy(vars[i],nf->words[nf->currWord]);
+   }
+   wordStep(nf,vl,1);
+
+   return vars;
 }
 
 bool validFunction(nalFile *nf, vList *vl)
@@ -855,25 +910,21 @@ bool validFunction(nalFile *nf, vList *vl)
    }
    wordStep(nf,vl,1);
 
-   while (!strsame(")",nf->words[nf->currWord])) {
-      if (!isvar(nf->words[nf->currWord])) {
-         return FALSE;
-      }
-      wordStep(nf,vl,1);
-      if (!strsame(")",nf->words[nf->currWord])) {
-         if (!strsame(",",nf->words[nf->currWord])) {
-            return FALSE;
-         }
-      wordStep(nf,vl,1);
-      }
-   }
-
-   wordStep(nf,vl,1);
-   if (!strsame(nf->words[nf->currWord],"{")) {
-      return FALSE;
-   }
-
    return TRUE;
+}
+
+void parseAllFunctions(nalFile *nf,vList *vl)
+{
+   int i;
+   for (i = 0; i < (int)nf->fm->arrSize; i++) {
+      if (nf->fm->array[i]!=NULL) {
+         printf("Parsing Function: %s\n", nf->fm->array[i]->fname);
+         nf->currWord = nf->fm->array[i]->index;
+         program(nf,vl);
+         printf("Parsed OK\n");
+      }
+   }
+   printf("All Code Parsed OK\n");
 }
 
 void program(nalFile *nf, vList *vl)
@@ -1532,30 +1583,113 @@ void setVariable(nalFile *nf, vList *vl)
 
 instr nalFunc(nalFile *nf, vList *vl)
 {
-   char syntax[MAXSYNTAXWORDS][MAXSYNTAXWORDSIZE] =
-      {"FUNCTION", "(", "FNAME", ")"};
-   char **fname;
-   #ifdef INTERP
+   fMapCell *cell;
+
+   #ifdef INTFUNC
+   vList *vlNew;
    int currWord;
    #endif
 
-   if (strsame(nf->words[nf->currWord], syntax[0])) {
+   if (strsame(nf->words[nf->currWord], "FUNCTION")) {
       wordStep(nf,vl,1);
-      fname = checkSyntax(nf, vl, syntax, FUNCWORDS, VARSFROMFUNC);
-      #ifdef INTFUNC
-      currWord = nf->currWord;
-      nf->currWord = fMap_search(nf->fm,fname[0]);
-      freeArray(fname,VARSFROMFUNC);
-      if (nf->currWord == NOFUNCTIONFOUND) {
-         indexERROR(nf,vl,"Calling nonexistent function",currWord-2);
+      cell = fMap_search(nf->fm,nf->words[nf->currWord]);
+      if (cell == NULL) {
+         indexERROR(nf,vl,
+            "Calling nonexistent function",
+            nf->currWord);
       }
-
-      program(nf,vl);
+      wordStep(nf,vl,1);
+      checkWord(nf,vl,"(","Expected '(' after <FNAME>");
+      wordStep(nf,vl,1);
+      #ifdef INTFUNC
+      vlNew = vList_init();
+      vlNew->prev = vl;
+      checkVariables(nf, vlNew, cell);
+      wordStep(nf,vlNew,1);
+      currWord = nf->currWord;
+      nf->currWord = cell->index;
+      program(nf,vlNew);
+      vList_free(&vlNew);
       nf->currWord = currWord;
+      #else
+      checkVariables(nf, vl, cell);
+      wordStep(nf,vl,1);
       #endif
+
       return EXECUTED;
    }
    return NOTEXECUTED;
+}
+
+void checkVariables(nalFile *nf, vList *vlNew, fMapCell *cell)
+{
+   int i;
+
+   if (cell->varTot != 0) {
+      for (i = 0; i < cell->varTot-1; i++) {
+         checkVarType(nf,vlNew,cell,i);
+         wordStep(nf,vlNew,1);
+         checkWord(nf,vlNew,",","Expected comma in between <VARCONS> during Fuction Call");
+         wordStep(nf,vlNew,1);
+      }
+      checkVarType(nf,vlNew,cell,cell->varTot-1);
+      wordStep(nf,vlNew,1);
+   }
+   checkWord(nf,vlNew,")","Expected ) at the end of Function Call");
+
+}
+
+void checkVarType(nalFile *nf, vList *vlNew, fMapCell *cell, int currVar)
+{
+   bool sametype;
+   #ifdef INTFUNC
+   vList *vl;
+   double num;
+   bool error;
+   char *str;
+
+   error = FALSE;
+   vl = vlNew->prev;
+   #endif
+   sametype = FALSE;
+
+   if (isnum(cell->vars[currVar])&&
+      isnum(nf->words[nf->currWord])) {
+      sametype = TRUE;
+      #ifdef INTFUNC
+         num = extractNum(vl, nf->words[nf->currWord],&error);
+         if (error) {
+            handleExtractNumError(nf,vlNew,num);
+         }
+         str = (char *)allocate(sizeof(char)*MAXDOUBLESIZE,
+            "Number Variable");
+         sprintf(str,"%lf",num);
+         vList_insert(vlNew,cell->vars[currVar],str);
+         free(str);
+      #endif
+   }else if (isstr(cell->vars[currVar])&&
+      isstr(nf->words[nf->currWord])) {
+      sametype = TRUE;
+      #ifdef INTFUNC
+      str = extractStr(vl,nf->words[nf->currWord]);
+      if (str == NULL) {
+         indexERROR(nf,vlNew,"Trying to call uninitialized variable",nf->currWord);
+      }
+      vList_insert(vlNew,cell->vars[currVar],str);
+      free(str);
+      #endif
+   }
+   if (sametype==FALSE) {
+      indexERROR(nf,vlNew,"Wrong Variable Type in Function Call", nf->currWord);
+   }
+
+}
+
+void checkWord(nalFile *nf,vList *vl,char *word, char *msg)
+{
+   if (!strsame(nf->words[nf->currWord], word)) {
+      indexERROR(nf,vl,msg,nf->currWord);
+   }
 }
 
 bool validSet(char *name, char *val)

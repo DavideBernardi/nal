@@ -3,9 +3,6 @@
 #include <string.h>
 #include <assert.h>
 
-/*Important: default value returned if no function is found by fMap_search*/
-#define NOFUNCTIONFOUND -1
-
 /*Fraction of the array that needs to be filled before triggering the reallocation*/
 #define MAXFRACTIONFILLED 0.6
 
@@ -25,29 +22,31 @@ typedef enum {FALSE, TRUE} bool;
 #endif
 typedef unsigned long ulong;
 
-struct fMapPair {
+struct fMapCell {
    char* fname;
    int index;
+   char **vars;
+   int varTot;
 };
-typedef struct fMapPair fMapPair;
+typedef struct fMapCell fMapCell;
 
 struct fMap {
-   fMapPair** array;
+   fMapCell** array;
    unsigned long arrSize;
    int numElems;
 };
 typedef struct fMap fMap;
 
 fMap* fMap_init(void);
-/* Number of fname/index pairs stored */
+/* Number of fname/index Cells stored */
 int fMap_size(fMap* m);
-/* Insert one fname/index pair
+/* Insert one fname/index Cell
 If two functions have the same name, the second one doesn't get stored */
-void fMap_insert(fMap* m, char* fname, int data);
+void fMap_insert(fMap* m, char* fname, int index, char **vars, int varTot);
 /* Return the corresponding index for a fname
 Since we need this for the index of a word in a nalFile,
 we use -1 as the value to be returned in case of error*/
-int fMap_search(fMap* m, char* fname);
+fMapCell *fMap_search(fMap* m, char* fname);
 
 void fMap_print(fMap* m);
 /* Free & set p to NULL */
@@ -55,8 +54,8 @@ void fMap_free(fMap** p);
 
 /*Functions use to play with Array*/
 void resizeArray(fMap *m);
-void reallocatePairs(fMap *m, fMapPair** newArray, int newPrime);
-void insertPair(fMap *m, ulong hash, char *fname, int index);
+void reallocateCells(fMap *m, fMapCell** newArray, int newPrime);
+void insertCell(fMap *m, ulong hash, char *fname, int index, char **vars, int varTot);
 bool arrayTooFull(fMap *m);
 
 /*Functions used for hashing*/

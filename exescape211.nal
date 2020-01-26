@@ -1,7 +1,7 @@
 LABNEINIT ( )
 {
    PRINT $NE
-   FUNCTION ( LABNE )
+   FUNCTION  LABNE ( )
 }
 
 LABNE ( )
@@ -12,27 +12,27 @@ LABNE ( )
 
    IFEQUAL ( $VA , "MOVE" ) {
       IFEQUAL ( $B , "SOUTH" ) {
-         FUNCTION ( LABSEINIT )
+         FUNCTION  LABSEINIT ( )
       }
       PRINT $NECANTGO
-      FUNCTION ( LABNE )
+      FUNCTION  LABNE ( )
    }
 
    IFEQUAL ( $VA , "TALK" ) {
       IFEQUAL ( $VB , "NEILL" ) {
          PRINT $NEILL
          %TALKEDNEILL = 1
-         FUNCTION ( LABNE )
+         FUNCTION LABNE ( )
       }
    }
 
-   FUNCTION ( LABNE )
+   FUNCTION LABNE ( )
 }
 
 LABNWINIT ( )
 {
    PRINT $NW
-   FUNCTION ( LABNW )
+   FUNCTION LABNW ( )
 }
 
 LABNW ( )
@@ -44,13 +44,13 @@ LABNW ( )
 
    IFEQUAL ( $VA , "MOVE" ) {
       IFEQUAL ( $B , "SOUTH" ) {
-         FUNCTION ( LABSWINIT )
+         FUNCTION LABSWINIT ( )
       }
    }
 
    IFEQUAL ( $VA , "MOVE" ) {
       IFEQUAL ( $B , "EAST" ) {
-         FUNCTION ( LABNEINIT )
+         FUNCTION LABNEINIT ( )
       }
    }
 
@@ -60,7 +60,7 @@ LABNW ( )
       }
    }
 
-   FUNCTION ( LABNW )
+   FUNCTION LABNW ( )
 }
 
 MAIN ( )
@@ -103,7 +103,7 @@ MAIN ( )
    PRINT "TALK CARL"
    PRINT ""
 
-   FUNCTION ( LABSWINIT )
+   FUNCTION LABSWINIT ( )
 }
 
 LABSEINIT ( )
@@ -123,7 +123,7 @@ LABSEINIT ( )
       PRINT $BIKESOLO
    }
 
-   FUNCTION ( LABSE )
+   FUNCTION LABSE ( )
 }
 
 LABSE ( )
@@ -133,15 +133,15 @@ LABSE ( )
 
    IFEQUAL ( $VA , "MOVE" ) {
       IFEQUAL ( $B , "WEST" ) {
-         FUNCTION ( LABSWINIT )
-         FUNCTION ( LABSE )
+         FUNCTION LABSWINIT ( )
+         FUNCTION LABSE ( )
       }
    }
 
    IFEQUAL ( $VA , "MOVE" ) {
       IFEQUAL ( $B , "NORTH" ) {
-         FUNCTION ( LABNEINIT )
-         FUNCTION ( LABSE )
+         FUNCTION LABNEINIT ( )
+         FUNCTION LABSE ( )
       }
    }
 
@@ -149,7 +149,7 @@ LABSE ( )
       IFEQUAL ( $B , "SOUTH" ) {
          IFEQUAL ( %LOCKED , 1 ) {
             PRINT $SELOCKED
-            FUNCTION ( LABSE )
+            FUNCTION LABSE ( )
          }
          IFEQUAL ( %LOCKED , 0 ) {
             PRINT ""
@@ -164,7 +164,7 @@ LABSE ( )
 
    IFEQUAL ( $VA , "MOVE" ) {
       PRINT "You can't go that way ?"
-      FUNCTION ( LABSE )
+      FUNCTION LABSE ( )
    }
 
    IFEQUAL ( $VA , "ACTION" ) {
@@ -181,23 +181,23 @@ LABSE ( )
       IFEQUAL ( $VB , "2393" ) {
          PRINT $SEROT
       }
-      FUNCTION ( LABSE )
+      FUNCTION LABSE ( )
    }
 
    IFEQUAL ( $VA , "TALK" ) {
       IFEQUAL ( $VB , "CARL" ) {
          IFEQUAL ( $WHERECHEK , "SE" ) {
             PRINT $SECHEKNOTCHATTY
-            FUNCTION ( LABSE )
+            FUNCTION LABSE ( )
          }
          IFEQUAL ( $WHERECHEK , "SW" ) {
             PRINT "He's not here ?"
-            FUNCTION ( LABSE )
+            FUNCTION LABSE ( )
          }
       }
    }
 
-   FUNCTION ( LABSEINIT )
+   FUNCTION LABSEINIT ( )
 }
 
 LABSWINIT ( )
@@ -210,7 +210,7 @@ LABSWINIT ( )
       PRINT $SWCHEKSE
    }
 
-   FUNCTION ( LABSW )
+   FUNCTION LABSW ( )
 }
 
 LABSW ( )
@@ -220,7 +220,7 @@ LABSW ( )
 
    IFEQUAL ( $VA , "MOVE" ) {
       IFEQUAL ( $B , "EAST" ) {
-         FUNCTION ( LABSEINIT )
+         FUNCTION LABSEINIT ( )
       }
    }
 
@@ -228,23 +228,23 @@ LABSW ( )
       IFEQUAL ( $B , "NORTH" ) {
          IFEQUAL ( %LIGHTON , 0 ) {
             PRINT $SWLIGHTSOFF
-            FUNCTION ( LABSW )
+            FUNCTION LABSW ( )
          }
          IFEQUAL ( %LIGHTON , 1 ) {
-            FUNCTION ( LABNWINIT )
+            FUNCTION LABNWINIT ( )
          }
       }
    }
 
    IFEQUAL ( $VA , "MOVE" ) {
       PRINT "You can't go that way ?"
-      FUNCTION ( LABSW )
+      FUNCTION LABSW ( )
    }
 
    IFEQUAL ( $VA , "TALK" ) {
       IFEQUAL ( $VB , "CARL" ) {
          PRINT $SWCHEKNOTCHATTY
-         FUNCTION ( LABSW )
+         FUNCTION LABSW ( )
       }
    }
 
@@ -261,8 +261,8 @@ LABSW ( )
       IFEQUAL ( $VB , "BIKE" ) {
          PRINT $SWNOBIKE
       }
-      FUNCTION ( LABSW )
+      FUNCTION LABSW ( )
    }
 
-   FUNCTION ( LABSWINIT )
+   FUNCTION LABSWINIT ( )
 }

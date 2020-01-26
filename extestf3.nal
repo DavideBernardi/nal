@@ -1,11 +1,12 @@
-MAIN {
+MAIN ( ) {
 
 
       RND ( %A )
+      $STR = #Some coded Stuff#
       FUNCTION ( F1 )
 
 }
 
-F1 {
+F1 ( $A , %B ) {
    FILE "extestf2.nal"
 }

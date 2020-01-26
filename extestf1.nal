@@ -17,7 +17,7 @@ MAIN ( ) {
    PRINT "Testing Numbers Printing:"
    PRINT 325.123
 
-   FUNCTION { RANDOM }
+   FUNCTION RANDOM { }
 
    PRINT -54353
    PRINT 0.01

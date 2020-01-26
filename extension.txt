@@ -1,52 +1,203 @@
-FUNCTIONS
-
-For my extension I wanted to do something that showcased my coding skills, while at the same time being fun to code and more important being something that would be actually useful for writing games in this language.
+For my extension I wanted to do something that showcased my coding skills, while
+at the same time being fun to code and more important being something that
+would be actually useful for writing games in this language.
 
 Functions seemed to be the best thing for those goals.
 
-How it works:
+This extension covers two main topics:
 
-Before any parsing or interpreting happens, we run locateFunctions() from inside setupNalFile().
+-FUNCTIONS
+-VARIABLE SCOPES
 
-This function runs through the file looking for a syntax of this form:
+What does this extension do?
 
-Word[i] : <FNAME>
-Word[i+1] : "{"
-Increase i until a matching "}" is found
-Repeat until end of file is reached.
+It allows the user to write functions within the program and to call them
+wherever in the code. Functions can be called recursively. Functions are
+always of type VOID i.e. they do not return a value, but can be passed
+any number of variables.
 
-Where <FNAME> = [A-Z,0-9]+ represents the function names
+The variables either passed to the function or defined within a function are
+not global, they are local to the function.
 
-Each new function that is found is stored in a Function Map along with where it is in the file, all the code for the Function Maps is in fMap.c.
-Similarly to the code for the Variable List, fMap.c is a modified version of our mvm assignment. Unlike the Variable List though, fMap.c uses a hash table to store functions.
-I chose to use a hash table for this in order to showcase my programming abilities, in real life this might not have been the most efficient data structure for this task.
-The code in fMap.c was tested in fMap_test.c and can be run with the fMap.mk makefile with the rule "memleaks".
+However if we try to call a Variable that is not initialized in the Scope of
+the function, the program will look in the Scope above it (i.e. the scope of
+the previous function that called this function) and it will continue this
+process until it looks at the global variables.
 
-Once all Functions have been found, the word index is set to the index of the default function MAIN (If there is no MAIN function we terminate and give an ERROR).
+(I think this is similar to how MATLAB handle scopes).
 
-Now, in order to call a function the syntax is as such:
+When a piece of code is interpreted, the function that is run by default is
+MAIN ( ). It must have no variables inside it.
 
-<FUNCTION> = "FUNCTION" "(" <FNAME> ")"
+This is showcased in the .nal files "exexample1.nal", "exexample2.nal",
+"extest1.nal" (I also use this one for testing so it looks a little weird)
+And in "exescape211.nal", which is a single-file version of escape211.nal, but
+more on this later.
 
-During a function call, we store the current word index, then we get the function's word index from the Function Map, and then we simply run <PROG> from that word index.
-After we exit the <PROG> call we set the word index back to the one we stored at the start.
+NOTE: Because the basic syntax is different, the extension cannot run the same
+      files that nal.c can run.
+      In order to "convert" a normal .nal file to one that can be used by the
+      extension, simply add "MAIN ( ) " at the top of the file
 
-Functions are not global, each file has its own set of functions.
-If a function is defined twice, we terminate and give an ERROR.
-A function can have the same name as a syntax rule.
+The rules:
 
-All errors I could think of are handled properly with the correct freeing and error messages.
-Except the <JUMP> issue already pointed out in the main assignment, here it's even worse since the user could in theory <JUMP> from one function to another.
+The SYNTAX for a Function Definition is as such:
+<FNAME> "(" <VARS> ")" <PROG>
+
+<FNAME> = [A-Z,0-9]+
+
+<VARS> is simply either nothing (i.e. no variables passed)
+or one <VAR> possibly followed by any number of "," <VAR>  pairs.
+
+i.e.  FIBON ( %NUM1 , %NUM2 ) { . . . }
+
+The SYNTAX for a Function Call is as such:
+"FUNCTION" <FNAME> "(" <VARCONS> ")"
+
+<VARS> is simply either nothing (i.e. no variables passed)
+or one <VARCON> possibly followed by any number of "," <VARCON>  pairs.
+
+(Note: All functions are found and indexed before parsing)
+The parser will flag an ERROR even if this syntax is correct if:
+   1. The function called with <FNAME> is not defined.
+   2. The <VARCONS> in the Function Call do not match the <VARS> in the Function
+   Definition of function <FNAME>.
+   i.e. Different amount of <VARS> or assigning a <NUM> to a <STR>
+
+In other words, each Function Definition creates its own SYNTAX RULE.
+However since each function call is prefaced by "FUNCTION", we can allow
+functions to have the same name as a syntax rule.
+i.e. FUNCTION PRINT ( %S ) is allowed
 
 
 
+How this extension Works:
 
-To showcase this new feature, I have rewritten escape211 in a single file: exescape211.nal, the only other file it uses is exmunge.nal. I could have had a MUNGE function but I wanted to show that this feature works properly even in conjunction with <FILE> calls.
+PRE-PARSING
+
+Before any parsing or interpreting happens, we run locateFunctions() from inside
+setupNalFile().
+
+This function runs through the file looking for the Function Call SYNTAX.
+
+Each new function that is found is stored in a Function Map fMap STRUCTURE
+as a fMap Cell.
+Each fMapCell contains:
+   1) The <FNAME> of the function.
+   2) The Word Index of where the function begins (i.e. the "{").
+   3) An array of strings containing all the <VARS> (NULL if no <VARS>).
+
+If two functions with the same name are found, we give an ERROR and terminate.
+
+This Function Map is then stored inside the nalFile structure.
+This means functions are not "global" in the sense that when we call <FILE>,
+the new file we are in does not see the Functions that were defined by the
+previous file.
+
+All the code for the Function Maps is in fMap.c.
+Note: At first I wanted to simply use the functions defined in fMap to play with
+Function Maps, but when I started adding string arrays I ended up having to
+modify the fMap and fMapCell structures directly from extension.c
+
+Similarly to the code for the Variable List, fMap.c is a modified version of our
+mvm assignment. Unlike the Variable List though, fMap.c uses a hash table to
+store functions.
+I chose to use a hash table for this in order to showcase my programming
+abilities, in real life this might not have been the most efficient data
+structure for this task.
+The code in fMap.c was tested in fMap_test.c and can be run with the fMap.mk
+makefile with the rule "memleaks".
+
+Once all Functions have been found, the word index is set to the index of the
+default function MAIN (If there is no MAIN function we terminate and give an
+ERROR).
+
+PARSING
+
+Since we are not parsing multiple <PROG>s in a single file, I had to make a
+parseAllFunctions() function which takes each function one by one and parses it.
+
+When parsing a Function Call, we simply check that <FNAME> is in the Function
+Map, then we compare each <VAR> with the corresponding <VARCON> and we ensure
+that they are of the same VARTYPE. If there is a different amount of <VARCONS>
+we also give an ERROR.
+Obviously we also check for the basic syntax such as the parenthesis and the
+commas being in the right spots.
+
+INTERPRETING
+
+When interpreting, we do not go through parseAllFunctions() obviously,
+we simply run <PROG> from MAIN.
+
+When a function is called, we create a nested Variable SCOPE (more on this
+later), in this new SCOPE we vList_Insert() the Values of the <VARCONS> in the
+Function Call with the Names of the <VARS> in the Function Definition
+
+Then we store the Current Word Index, we set the Word Index to the Index
+associated to the Function and run <PROG>, however this <PROG> will be
+passed the new Variable SCOPE.
+
+NESTED VARIABLE SCOPES
+
+For this extension I also modified the Variable List file vList, the modified
+version is called exvList.c.
+The main changes here are:
+The addition of a POINTER "prev" in the vList structure which points to another
+vList structure.
+vList_scopedSearch();
+vList_freeAll();
+
+Each new SCOPE is stored as a new vList structure.
+
+When a new SCOPE (i.e. vlNew) is created, the previous SCOPE is pointed to by
+this new vList's prev pointer
+(i.e. vlNew->prev = vlOld).
+
+When we want to search for a variable scope by scope (locally first, then more
+and more globally) we simply run the standard vList_search() on the local
+Variable List
+(i.e. vList_search(vlNew,*) )
+If we do not find a match we simply run vList_search() again but this time on
+the previous Variable List
+(i.e. vl = vl->prev
+      vList_search(vl,*) )
+
+This is what takes place in vList_scopedSearch().
+
+vList_freeAll() simply frees every Variable List in this vList linked list.
+
+TESTING
+
+I rewrote some of the basic unit testing to fit this new SYNTAX, and I also
+did some testing directly on .nal files which can be run through the
+extension.mk makefile with rule 'test'.
+
+GENERAL
+
+All errors I could think of are handled properly with the correct freeing and
+error messages.
+Except the <JUMP> issue already pointed out in the main assignment, here it's
+even worse since the user could in theory <JUMP> from one function to another.
+
+REWRITING ESCAPE211
+
+To showcase this extension, I have rewritten escape211 in a single file:
+exescape211.nal, the only other file it uses is exmunge.nal.
+I could have had a MUNGE function but I wanted to show that this
+extension works properly even in conjunction with <FILE> calls.
 
 (*) = ne || nw || se || sw
-For each lab(*).nal file I wrote a LAB(*)INIT and a LAB(*) function, LAB(*)INIT does the initial printing for when going to a corner of the lab to another and LAB(*) does the rest.
+For each lab(*).nal file I wrote a LAB(*)INIT and a LAB(*) function, LAB(*)INIT
+does the initial printing for when going to a corner of the lab to another
+and LAB(*) does the rest.
 
-PRO: Using Recursive calls I was able to get rid of all the <JUMP> calls which as we know can lead to weird errors.
+PRO: Using Recursive calls I was able to get rid of all the <JUMP> calls which
+as we know can lead to weird errors.
 
-CON: I had to write two functions for each file, and even that is not enough since in its current state exescape211.nal still differs a little from escape211.nal
-(If we are in LABNE or LABNW and we reach the end of the function, LABNEINIT or LABNWINIT are called respectively, so the initial text $NE or $NW is printed again, whereas in escape211.nal we <JUMP> to right after the <PRINT> command so that doesn't happen ).
+CON: I had to write two functions for each file, and even that is not enough
+since in its current state exescape211.nal still differs a little from
+escape211.nal
+(If we are in LABNE or LABNW and we reach the end of the function, LABNEINIT or
+LABNWINIT are called respectively, so the initial text $NE or $NW is printed
+again, whereas in escape211.nal we <JUMP> to right after the <PRINT> command
+so that doesn't happen ).

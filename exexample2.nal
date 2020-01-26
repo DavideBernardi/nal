@@ -1,0 +1,25 @@
+MAIN ( )
+{
+   %NUM = 0
+
+   FUNCTION F1 ( %NUM )
+
+   PRINT "After leaving the recursive function, the global variable is still: "
+   PRINT %NUM
+
+}
+
+F1 ( %C )
+{
+   INC ( %C )
+
+   PRINTN "Inside the Function(s), the number is: "
+   PRINT %C
+   PRINTN "But the global copy remains and can be reached from within the function: "
+   PRINT %NUM
+
+   IFGREATER ( 10 , %C )
+   {
+      FUNCTION F1 ( %C )
+   }
+}

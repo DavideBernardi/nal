@@ -1,0 +1,17 @@
+MAIN ( )
+{
+   $HI = "Hi from Main"
+   PRINT $HI
+   FUNCTION F1 ( $HI )
+   PRINT "Back in main"
+   PRINT $HI
+
+}
+
+F1 ( $MAINHI )
+{
+   $HI = "hi from F1"
+   PRINT $HI
+   PRINT "Main sends his regards:"
+   PRINT $MAINHI
+}

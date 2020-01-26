@@ -10,24 +10,28 @@
 #define EXTRACHARS 5
 #define PAIRNUM 30
 #define WORDSIZE 10
+#define VARTOT 10
 
 int main(void)
 {
-   int i, j;
+   int i, j, varTot;
    fMap *m, *m2;
-   char animals[NEILLPAIRNUM][NEILLWORDSIZE] = {"cat",  "dog",  "bird",  "horse", "frog"};
-   int  noises[NEILLPAIRNUM];
-   char keys[PAIRNUM][WORDSIZE] = {"cat",  "dog",  "bird",  "horse", "frog","cata",  "doga",
+   char smallnameset[NEILLPAIRNUM][NEILLWORDSIZE] = {"cat",  "dog",  "bird",  "horse", "frog"};
+   int  smallnumset[NEILLPAIRNUM];
+   char bignameset[PAIRNUM][WORDSIZE] = {"cat",  "dog",  "bird",  "horse", "frog","cata",  "doga",
    "birda",  "horsea", "froga", "catb",  "dogb",  "birdb",  "horseb", "frogb",
    "catc",  "dogc",  "birdc",  "horsec", "frogc","catd",  "dogd",  "birdd",
    "horsed", "frogd","cate",  "doge",  "birde",  "horsee", "froge",};
-   char values[PAIRNUM];
+   char bignumset[PAIRNUM];
+   char varnames[VARTOT][WORDSIZE] = {"$ASFS",  "$NBV", "$ETHF", "$KJHD","$UYTR", "$CBVDG",  "$TGBF",  "$IUJHNTR", "$OKERTH", "%BLEH"};
+   char **vars;
+   fMapCell *cell;
 
    for (i = 0; i < PAIRNUM; i++) {
-      values[i] = i+1;
+      bignumset[i] = i+1;
    }
    for (i = 0; i < NEILLPAIRNUM; i++) {
-      noises[i] = i+1;
+      smallnumset[i] = i+1;
    }
    printf("Basic fMap Tests ... Start\n");
 
@@ -41,31 +45,60 @@ int main(void)
 
    /* Building and Searching */
    for(j=0; j<NEILLPAIRNUM; j++){
-      fMap_insert(m, animals[j], noises[j]);
+      fMap_insert(m, smallnameset[j], smallnumset[j], NULL, 0);
       assert(fMap_size(m)==j+1);
-      assert(fMap_search(m, animals[j])==noises[j]);
+      assert(fMap_search(m, smallnameset[j])->index==smallnumset[j]);
    }
 
    for (j = 0; j < PAIRNUM; j++) {
-      fMap_insert(m2, keys[j], values[j]);
+      fMap_insert(m2, bignameset[j], bignumset[j], NULL, 0);
       assert(fMap_size(m2)==j+1);
-      assert(fMap_search(m2, keys[j])==values[j]);
+      assert(fMap_search(m2, bignameset[j])->index==bignumset[j]);
    }
 
    /* Search for non-existent key */
-   /* No-one knows what the fox says ? */
-   assert(fMap_search(m, "fox") == NOFUNCTIONFOUND);
+   /* No-one knows what the fox function does */
+   assert(fMap_search(m, "fox") == NULL);
 
    /* Weird NULL insert() edge cases */
-   fMap_insert(m, NULL, 1);
+   fMap_insert(m, NULL, 1, NULL, 0);
    assert(fMap_size(m)==NEILLPAIRNUM);
-   fMap_insert(NULL, "duck", 1);
+   fMap_insert(NULL, "duck", 1, NULL, 0);
    assert(fMap_size(m)==NEILLPAIRNUM);
 
    /*Other edge cases*/
    assert(fMap_size(NULL)==0);
-   assert(fMap_search(NULL, "cat")==NOFUNCTIONFOUND);
-   assert(fMap_search(m, NULL)==NOFUNCTIONFOUND);
+   assert(fMap_search(NULL, "cat")==NULL);
+   assert(fMap_search(m, NULL)==NULL);
+
+   /*Testing vars and varTot*/
+   varTot = VARTOT;
+   vars = fMap_allocate(varTot*sizeof(char *), "Vars array");
+   for (i = 0; i < varTot; i++) {
+      vars[i] = fMap_allocate(WORDSIZE*sizeof(char), "VAR");
+   }
+
+   strcpy(vars[0],"$ASFS");
+   strcpy(vars[1],"$NBV");
+   strcpy(vars[2],"$ETHF");
+   strcpy(vars[3],"$KJHD");
+   strcpy(vars[4],"$UYTR");
+   strcpy(vars[5],"$CBVDG");
+   strcpy(vars[6],"$TGBF");
+   strcpy(vars[7],"$IUJHNTR");
+   strcpy(vars[8],"$OKERTH");
+   strcpy(vars[9],"%BLEH");
+
+   /*Reinsert a random map with this var array added*/
+   fMap_insert(m, "NEWFUNC", smallnumset[4], vars, varTot);
+   assert(fMap_size(m)==NEILLPAIRNUM+1);
+   cell = fMap_search(m, "NEWFUNC");
+   assert(cell->index==smallnumset[4]);
+   assert(cell->varTot==varTot);
+   for (i = 0; i < varTot; i++) {
+      j = strcmp(cell->vars[i],varnames[i]);
+      assert(j==0);
+   }
 
    /* Freeing */
    fMap_free(&m);

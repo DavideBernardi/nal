@@ -137,6 +137,12 @@ occurs they can be appropriately freed*/
    bool validFunction(nalFile *nf, vList *vl);
    bool isfname(char const *word);
    instr nalFunc(nalFile *nf, vList *vl);
+   char **getVars(nalFile *nf, vList *vl, int *varTot);
+   char **allocateVars(nalFile *nf, vList *vl, int varTot);
+   void checkWord(nalFile *nf,vList *vl,char *word, char *msg);
+   void checkVariables(nalFile *nf, vList *vl, fMapCell *cell);
+   void checkVarType(nalFile *nf, vList *vl, fMapCell *cell, int currVar);
+   void parseAllFunctions(nalFile *nf,vList *vl);
 /*Functions modified for the extension*/
    void skipToMatchingBracket(nalFile *nf, vList *vl);
 

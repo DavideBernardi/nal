@@ -1,22 +1,22 @@
-MAIN {
+MAIN ( ) {
 
    PRINT "Hello World! From test1"
 
 }
 
-F1 {
+F1 ( ) {
 
    PRINT "Hello World! From test1"
 
 }
 
-F2 {
+F2 ( ) {
 
    PRINT "Hello World! From test1"
 
 }
 
-F2 {
+F2 ( ) {
 
    PRINT "Hello World! From test1"
 

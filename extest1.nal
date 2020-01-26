@@ -1,4 +1,4 @@
-PRINT ( ) {
+PRINT ( $A , $B , $C , %HE ) {
    PRINT "Input 2 Strings:"
    IN2STR ( $STRONE , $STRTWO )
    PRINT "Input 2 Strings:"
@@ -17,19 +17,63 @@ MAIN ( ) {
    PRINT "Testing Numbers Printing:"
    PRINT 325.123
 
-   FUNCTION ( RANDOM )
+   %A = -178.4231
+   %D = 7
+   %F = 3
+   $LONGLONGVARIABLENAME = "Blub blub"
+   $BLEH = "Aaaaaargh"
 
-   PRINT -54353
-   PRINT 0.01
-   PRINT 0
+   $HI = "Hi Man"
+
+   FUNCTION TESTING ( 13 , %A , "Hello Dude" , $HI )
+
+   PRINT "Out of the Function now"
+
+   PRINTN "This should be 7 and not 13: "
+   PRINT %D
+
+   PRINTN "This should be 3 and not -178.4231 or 89: "
+   PRINT %F
+
+   PRINTN "This should be -178.4231 and not 89: "
+   PRINT %A
+
+   PRINTN "This should be 'Blub blub' and not 'Hello Dude' : "
+   PRINT $LONGLONGVARIABLENAME
+
+   PRINTN "This should be 'Aaaaaargh' and not 'Hi Man' or 'Am bored' : "
+   PRINT $BLEH
+
+   PRINTN "This should be 'Hi Man' and not 'Am Bored' : "
+   PRINT $HI
+
 
 }
 
-RANDOM ( ) {
+TESTING ( %D , %F , $LONGLONGVARIABLENAME , $BLEH ) {
 
-   RND ( %N )
-   PRINTN "A Random Number: "
-   PRINT %N
+   %A = 89
+   $HI = "Am bored"
+
+   PRINT "Variables Scopes Check: "
+   PRINTN "This should be 13 and not 7: "
+   PRINT %D
+
+   PRINTN "This should be -178.4231 and not 89: "
+   PRINT %F
+
+   PRINTN "This should be 89: "
+   PRINT %A
+
+   PRINTN "This should be 'Hello Dude' and not 'Blub blub' : "
+   PRINT $LONGLONGVARIABLENAME
+
+   PRINTN "This should be 'Hi Man' and not 'Am bored' : "
+   PRINT $BLEH
+
+   PRINTN "This should be 'Am Bored' : "
+   PRINT $HI
+
 }
 
 SETSTUFF ( ) {

@@ -8,7 +8,7 @@ fMap* fMap_init(void)
    m = (fMap *)fMap_allocate(sizeof(fMap), "Map");
 
    i = INITPRIME;
-   m->array = (fMapPair **)fMap_callocate(sizeof(fMapPair *),i, "Array");
+   m->array = (fMapCell **)fMap_callocate(sizeof(fMapCell *),i, "Array");
    m->arrSize = i;
    m->numElems = 0;
 
@@ -23,7 +23,7 @@ int fMap_size(fMap* m)
    return m->numElems;
 }
 
-void fMap_insert(fMap* m, char* fname, int index)
+void fMap_insert(fMap* m, char* fname, int index, char **vars, int varTot)
 {
    ulong  hash, step;
 
@@ -54,47 +54,50 @@ void fMap_insert(fMap* m, char* fname, int index)
       }
    }
 
-   insertPair(m, hash, fname,index);
+   insertCell(m, hash, fname,index,vars,varTot);
 }
 
-void insertPair(fMap *m, ulong hash, char *fname, int index)
+void insertCell(fMap *m, ulong hash, char *fname, int index, char **vars, int varTot)
 {
    char *allocatedFname;
-   fMapPair *pair;
+   fMapCell *Cell;
 
-   pair = (fMapPair *)fMap_allocate(sizeof(fMapPair), "Space for Functon/Index Pair");
+   Cell = (fMapCell *)fMap_allocate(sizeof(fMapCell), "Space for Functon Cell");
    allocatedFname = (char *)fMap_allocate((strlen(fname)+1)*sizeof(char), "Function Name");
    strcpy(allocatedFname, fname);
-   pair->fname = allocatedFname;
-   pair->index = index;
-   m->array[hash] = pair;
+   Cell->fname = allocatedFname;
+   Cell->index = index;
+   Cell->vars = vars;
+   Cell->varTot = varTot;
+   m->array[hash] = Cell;
    m->numElems++;
 }
 
-int fMap_search(fMap* m, char* fname)
+fMapCell *fMap_search(fMap* m, char* fname)
 {
    ulong hash, step;
 
    if (m == NULL || fname == NULL) {
-      return NOFUNCTIONFOUND;
+      return NULL;
    }
 
    hash = firstHash(fname, m->arrSize);
    step = secondHash(fname, m->arrSize);
    while (m->array[hash]!=NULL) {
       if (!strcmp(m->array[hash]->fname,fname)) {
-         return m->array[hash]->index;
+         return m->array[hash];
       }
       hash = takeStep(hash, step,m->arrSize);
    }
 
-   return NOFUNCTIONFOUND;
+   return NULL;
 }
 
 void fMap_free(fMap** p)
 {
    fMap *m;
    ulong i;
+   int j;
 
    if (p==NULL) {
       return;
@@ -107,6 +110,10 @@ void fMap_free(fMap** p)
    for (i = 0; i < m->arrSize; i++) {
       if (m->array[i] != NULL) {
          free(m->array[i]->fname);
+         for (j = 0; j < m->array[i]->varTot; j++) {
+            free(m->array[i]->vars[j]);
+         }
+         free(m->array[i]->vars);
          free(m->array[i]);
          m->array[i]=NULL;
       }
@@ -119,10 +126,14 @@ void fMap_free(fMap** p)
 
 void fMap_print(fMap *m)
 {
-   int i;
+   int i, j;
    for (i = 0; i < (int)m->arrSize; i++) {
       if (m->array[i] != NULL) {
-         printf("Function: %s | Index: %d\n",m->array[i]->fname, m->array[i]->index);
+         printf("Function: %s | Index: %d | Variables: ",m->array[i]->fname, m->array[i]->index);
+         for (j = 0; j < m->array[i]->varTot; j++) {
+            printf("%s, ", m->array[i]->vars[j]);
+         }
+         printf("\n");
       }
    }
 }
@@ -242,10 +253,10 @@ ulong power(ulong base, unsigned int exp)
    return val;
 }
 
-void reallocatePairs(fMap *m, fMapPair** newArray, int newPrime)
+void reallocateCells(fMap *m, fMapCell** newArray, int newPrime)
 {
    ulong hash, i, step;
-   fMapPair *k;
+   fMapCell *k;
 
    for (i = 0; i < m->arrSize; i++) {
       if (m->array[i]!=NULL) {
@@ -267,13 +278,13 @@ void reallocatePairs(fMap *m, fMapPair** newArray, int newPrime)
 void resizeArray(fMap *m)
 {
    int newPrime;
-   fMapPair **newArray;
+   fMapCell **newArray;
 
    newPrime = getDoubleSizedPrime(m->arrSize);
 
-   newArray = (fMapPair **)fMap_callocate(sizeof(fMapPair),newPrime, "Array");
+   newArray = (fMapCell **)fMap_callocate(sizeof(fMapCell),newPrime, "Array");
 
-   reallocatePairs(m, newArray, newPrime);
+   reallocateCells(m, newArray, newPrime);
 
 }
 
